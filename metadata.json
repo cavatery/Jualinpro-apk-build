@@ -1,0 +1,6 @@
+{
+  "name": "Jualin AI Pro",
+  "description": "Aplikasi AI Copywriting & Promosi Produk untuk UMKM Indonesia",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
