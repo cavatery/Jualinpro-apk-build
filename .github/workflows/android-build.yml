@@ -2,13 +2,14 @@ name: Android CI / CD Build
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ "**" ]
   pull_request:
-    branches: [ "main", "master" ]
+    branches: [ "**" ]
   workflow_dispatch:
 
 jobs:
   build:
+    name: Build & Test APK
     runs-on: ubuntu-latest
 
     steps:
@@ -20,15 +21,26 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: gradle
 
-      - name: Grant Execute Permission for Gradle Wrapper
-        run: chmod +x gradlew || true
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
 
-      - name: Set up Environment Variables
+      - name: Prepare Environment and Keystore
         run: |
+          # Create .env file for secrets gradle plugin
           touch .env
           echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> .env
+          
+          # Generate debug.keystore if not present (required by app build.gradle.kts)
+          if [ ! -f "debug.keystore" ]; then
+            keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
+          # Ensure gradlew wrapper exists
+          if [ ! -f "gradlew" ]; then
+            gradle wrapper
+          fi
+          chmod +x gradlew
 
       - name: Run Unit Tests
         run: ./gradlew testDebugUnitTest --stacktrace
@@ -38,7 +50,8 @@ jobs:
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: Jualin-AI-Pro-Debug-APK
+          name: Jualin-AI-Pro-APK
           path: app/build/outputs/apk/debug/*.apk
-          retention-days: 7
+          retention-days: 14
