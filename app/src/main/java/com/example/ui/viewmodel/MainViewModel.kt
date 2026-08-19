@@ -104,15 +104,46 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
-                val bitmap = BitmapFactory.decodeStream(inputStream)
+                // First decode bounds
+                var options = BitmapFactory.Options().apply {
+                    inJustDecodeBounds = true
+                }
+                var inputStream: InputStream? = context.contentResolver.openInputStream(uri)
+                BitmapFactory.decodeStream(inputStream, null, options)
+                inputStream?.close()
+
+                val origWidth = options.outWidth
+                val origHeight = options.outHeight
+                var inSampleSize = 1
+                val targetSize = 800
+
+                if (origHeight > targetSize || origWidth > targetSize) {
+                    val halfHeight = origHeight / 2
+                    val halfWidth = origWidth / 2
+                    while ((halfHeight / inSampleSize) >= targetSize && (halfWidth / inSampleSize) >= targetSize) {
+                        inSampleSize *= 2
+                    }
+                }
+
+                // Decode with sample size
+                options = BitmapFactory.Options().apply {
+                    this.inSampleSize = inSampleSize
+                    inPreferredConfig = Bitmap.Config.ARGB_8888
+                }
+                inputStream = context.contentResolver.openInputStream(uri)
+                val bitmap = BitmapFactory.decodeStream(inputStream, null, options)
                 inputStream?.close()
 
                 if (bitmap != null) {
-                    val scaled = resizeBitmap(bitmap, 800)
+                    val scaled = resizeBitmap(bitmap, targetSize)
                     val outputStream = ByteArrayOutputStream()
                     scaled.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
                     val base64String = Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP)
+                    
+                    if (scaled != bitmap) {
+                        scaled.recycle()
+                    }
+                    bitmap.recycle()
 
                     withContext(Dispatchers.Main) {
                         _uiState.value = _uiState.value.copy(
@@ -267,6 +298,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         repository.setProUser(isPro)
         viewModelScope.launch {
             _toastEvent.emit(if (isPro) "Selamat! Anda sekarang akun Jualin AI PRO ⭐" else "Beralih ke Akun Gratis")
+        }
+    }
+
+    fun testApiConnection(onResult: (Boolean, String) -> Unit) {
+        viewModelScope.launch {
+            val res = repository.testConnection()
+            res.onSuccess { msg ->
+                _toastEvent.emit("Koneksi Gemini AI Aktif! ✅")
+                onResult(true, msg)
+            }.onFailure { err ->
+                val errorMsg = err.message ?: "Gagal terhubung ke Gemini AI"
+                _toastEvent.emit("Gagal: $errorMsg")
+                onResult(false, errorMsg)
+            }
         }
     }
 

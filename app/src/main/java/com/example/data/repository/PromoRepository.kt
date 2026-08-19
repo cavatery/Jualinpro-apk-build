@@ -75,6 +75,11 @@ class PromoRepository(
         }
     }
 
+    suspend fun testConnection(): Result<String> {
+        val customKey = userPrefs.userProfile.value.customApiKey
+        return geminiClient.testConnection(customKey)
+    }
+
     suspend fun toggleFavorite(id: Long, currentFav: Boolean) {
         historyDao.updateFavorite(id, !currentFav)
     }

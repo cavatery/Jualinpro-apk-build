@@ -109,19 +109,7 @@ fun CreatePromoScreen(
                 title = "Buat Jualan AI",
                 subtitle = "Isi detail produk untuk materi promosi lengkap",
                 onBackClick = onBack,
-                isPro = userProfile.isProUser,
-                actions = {
-                    IconButton(
-                        onClick = { viewModel.loadSampleProduct() },
-                        modifier = Modifier.testTag("btn_load_sample")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Lightbulb,
-                            contentDescription = "Contoh Produk",
-                            tint = TertiaryAmber
-                        )
-                    }
-                }
+                isPro = userProfile.isProUser
             )
         },
         bottomBar = {

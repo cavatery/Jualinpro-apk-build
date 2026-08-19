@@ -25,10 +25,10 @@ class UserPreferencesRepository(context: Context) {
 
     private fun loadProfile(): UserProfile {
         return UserProfile(
-            shopName = prefs.getString("shop_name", "Toko UMKM Berkah") ?: "Toko UMKM Berkah",
-            shopContact = prefs.getString("shop_contact", "0812-3456-7890") ?: "0812-3456-7890",
-            shopLocation = prefs.getString("shop_location", "Jakarta, Indonesia") ?: "Jakarta, Indonesia",
-            shopMarketplaceLink = prefs.getString("shop_marketplace", "shopee.co.id/toko_berkah") ?: "shopee.co.id/toko_berkah",
+            shopName = prefs.getString("shop_name", "") ?: "",
+            shopContact = prefs.getString("shop_contact", "") ?: "",
+            shopLocation = prefs.getString("shop_location", "") ?: "",
+            shopMarketplaceLink = prefs.getString("shop_marketplace", "") ?: "",
             customApiKey = prefs.getString("custom_api_key", "") ?: "",
             isProUser = prefs.getBoolean("is_pro_user", true),
             generationCount = prefs.getInt("gen_count", 0)
@@ -37,16 +37,16 @@ class UserPreferencesRepository(context: Context) {
 
     fun updateShopProfile(name: String, contact: String, location: String, marketplace: String) {
         prefs.edit()
-            .putString("shop_name", name)
-            .putString("shop_contact", contact)
-            .putString("shop_location", location)
-            .putString("shop_marketplace", marketplace)
+            .putString("shop_name", name.trim())
+            .putString("shop_contact", contact.trim())
+            .putString("shop_location", location.trim())
+            .putString("shop_marketplace", marketplace.trim())
             .apply()
         _userProfile.value = loadProfile()
     }
 
     fun saveCustomApiKey(key: String) {
-        prefs.edit().putString("custom_api_key", key).apply()
+        prefs.edit().putString("custom_api_key", key.trim()).apply()
         _userProfile.value = loadProfile()
     }
 

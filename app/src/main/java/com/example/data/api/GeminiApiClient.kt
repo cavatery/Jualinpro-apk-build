@@ -52,6 +52,38 @@ class GeminiApiClient {
         }
     }
 
+    suspend fun testConnection(customApiKey: String = ""): Result<String> {
+        val apiKey = getApiKey(customApiKey)
+        if (apiKey.isBlank()) {
+            return Result.failure(Exception("API Key belum diisi. Masukkan Google Gemini API Key Anda."))
+        }
+        return try {
+            val request = GeminiContentRequest(
+                contents = listOf(
+                    ContentItem(
+                        parts = listOf(
+                            ContentPart(text = "Halo! Balas dengan 1 kalimat pendek: 'Koneksi Jualin AI ke server Gemini berhasil terhubung aktif!'")
+                        )
+                    )
+                )
+            )
+            val response = service.generateContent(
+                model = "gemini-2.5-flash",
+                apiKey = apiKey,
+                request = request
+            )
+            if (response.isSuccessful) {
+                val reply = response.body()?.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+                    ?: "Koneksi berhasil terhubung!"
+                Result.success(reply.trim())
+            } else {
+                Result.failure(Exception("Server menolak request (Error code: ${response.code()})"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun generatePromotion(input: ProductInput, customApiKey: String = ""): GeneratedPromo {
         val apiKey = getApiKey(customApiKey)
 

@@ -21,11 +21,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Diamond
@@ -187,13 +187,13 @@ fun HomeScreen(
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Selamat datang di Jualin AI Pro 👋",
+                                    text = if (userProfile.shopName.isNotBlank()) "Halo, ${userProfile.shopName}! 👋" else "Selamat Datang di Jualin AI Pro 👋",
                                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                                     color = Color.White
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "Bikin caption viral, iklan menarik, & naskah jualan dalam 5 detik!",
+                                    text = if (userProfile.shopLocation.isNotBlank()) "📍 ${userProfile.shopLocation} • Siap meroketkan omset jualan!" else "Bikin caption viral, iklan menarik, & naskah jualan dalam 5 detik!",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = Color.White.copy(alpha = 0.85f)
                                 )
@@ -372,7 +372,7 @@ fun HomeScreen(
                     FeatureGridItem("✍️ Caption AI", "11 gaya bahasa", Icons.Default.Create, SecondaryEmerald, onNavigateToCaptionStudio),
                     FeatureGridItem("📢 Iklan AI", "IG, FB, TikTok, WA", Icons.Default.Campaign, TertiaryAmber, onNavigateToAdStudio),
                     FeatureGridItem("💡 Ide Konten", "Jadwal 7 hari viral", Icons.Default.DateRange, Color(0xFF8B5CF6), onNavigateToContentPlan),
-                    FeatureGridItem("💬 Balas Chat", "Jawaban ramah CS", Icons.Default.Chat, Color(0xFF0EA5E9), onNavigateToChatAssistant),
+                    FeatureGridItem("💬 Balas Chat", "Jawaban ramah CS", Icons.AutoMirrored.Filled.Chat, Color(0xFF0EA5E9), onNavigateToChatAssistant),
                     FeatureGridItem("🏷️ Copy Promo", "Diskon & Flash sale", Icons.Default.LocalOffer, Color(0xFFEC4899), onNavigateToPromoStudio),
                     FeatureGridItem("❤️ Favorit & Riwayat", "Materi tersimpan", Icons.Default.History, Color(0xFF64748B), onNavigateToHistory),
                     FeatureGridItem("⭐ Upgrade PRO", "Fitur tanpa batas", Icons.Default.Diamond, TertiaryAmber, onNavigateToProUpgrade)

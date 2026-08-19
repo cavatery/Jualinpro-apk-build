@@ -18,12 +18,12 @@ data class ContentItem(
 @JsonClass(generateAdapter = true)
 data class ContentPart(
     val text: String? = null,
-    @Json(name = "inline_data") val inlineData: InlineData? = null
+    @property:Json(name = "inline_data") val inlineData: InlineData? = null
 )
 
 @JsonClass(generateAdapter = true)
 data class InlineData(
-    @Json(name = "mime_type") val mimeType: String,
+    @property:Json(name = "mime_type") val mimeType: String,
     val data: String
 )
 

@@ -24,10 +24,13 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -224,16 +227,69 @@ fun SettingsScreen(
 
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        Button(
-                            onClick = { viewModel.saveCustomApiKey(customApiKey) },
-                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryIndigo),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp)
-                                .testTag("btn_save_api_key")
+                        var isTesting by remember { mutableStateOf(false) }
+                        var testResultText by remember { mutableStateOf<String?>(null) }
+                        var testSuccess by remember { mutableStateOf(false) }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text("Simpan Kunci API", fontWeight = FontWeight.Bold)
+                            Button(
+                                onClick = { viewModel.saveCustomApiKey(customApiKey) },
+                                colors = ButtonDefaults.buttonColors(containerColor = PrimaryIndigo),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp)
+                                    .testTag("btn_save_api_key")
+                            ) {
+                                Text("Simpan API Key", fontWeight = FontWeight.Bold)
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+                                    isTesting = true
+                                    testResultText = null
+                                    viewModel.saveCustomApiKey(customApiKey)
+                                    viewModel.testApiConnection { success, msg ->
+                                        isTesting = false
+                                        testSuccess = success
+                                        testResultText = msg
+                                    }
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp)
+                                    .testTag("btn_test_api_key")
+                            ) {
+                                if (isTesting) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(18.dp),
+                                        strokeWidth = 2.dp,
+                                        color = PrimaryIndigo
+                                    )
+                                } else {
+                                    Text("Uji Koneksi AI", fontWeight = FontWeight.SemiBold)
+                                }
+                            }
+                        }
+
+                        if (testResultText != null) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Surface(
+                                color = if (testSuccess) SecondaryEmerald.copy(alpha = 0.12f) else MaterialTheme.colorScheme.errorContainer,
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = testResultText ?: "",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                                    color = if (testSuccess) SecondaryEmerald else MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.padding(12.dp)
+                                )
+                            }
                         }
                     }
                 }

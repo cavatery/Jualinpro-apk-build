@@ -17,9 +17,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Campaign
-import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.LocalOffer
@@ -118,7 +118,7 @@ fun ChatAssistantScreen(
     StudioGeneratorScreen(
         title = "Asisten Balas Chat & Follow-up",
         subtitle = "Template jawaban cepat & follow up pembeli",
-        icon = Icons.Default.Chat,
+        icon = Icons.AutoMirrored.Filled.Chat,
         viewModel = viewModel,
         onBack = onBack,
         onSuccess = onOpenResult,
