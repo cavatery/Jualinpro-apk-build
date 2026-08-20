@@ -4,7 +4,9 @@ import android.app.Application
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.ImageDecoder
 import android.net.Uri
+import android.os.Build
 import android.util.Base64
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
@@ -104,35 +106,48 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                // First decode bounds
-                var options = BitmapFactory.Options().apply {
-                    inJustDecodeBounds = true
-                }
-                var inputStream: InputStream? = context.contentResolver.openInputStream(uri)
-                BitmapFactory.decodeStream(inputStream, null, options)
-                inputStream?.close()
-
-                val origWidth = options.outWidth
-                val origHeight = options.outHeight
-                var inSampleSize = 1
                 val targetSize = 800
-
-                if (origHeight > targetSize || origWidth > targetSize) {
-                    val halfHeight = origHeight / 2
-                    val halfWidth = origWidth / 2
-                    while ((halfHeight / inSampleSize) >= targetSize && (halfWidth / inSampleSize) >= targetSize) {
-                        inSampleSize *= 2
+                val bitmap: Bitmap? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    val source = ImageDecoder.createSource(context.contentResolver, uri)
+                    ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+                        decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+                        val origWidth = info.size.width
+                        val origHeight = info.size.height
+                        if (origWidth > targetSize || origHeight > targetSize) {
+                            val maxDim = maxOf(origWidth, origHeight)
+                            val sample = (maxDim / targetSize).coerceAtLeast(1)
+                            decoder.setTargetSampleSize(sample)
+                        }
                     }
-                }
+                } else {
+                    var options = BitmapFactory.Options().apply {
+                        inJustDecodeBounds = true
+                    }
+                    var inputStream: InputStream? = context.contentResolver.openInputStream(uri)
+                    BitmapFactory.decodeStream(inputStream, null, options)
+                    inputStream?.close()
 
-                // Decode with sample size
-                options = BitmapFactory.Options().apply {
-                    this.inSampleSize = inSampleSize
-                    inPreferredConfig = Bitmap.Config.ARGB_8888
+                    val origWidth = options.outWidth
+                    val origHeight = options.outHeight
+                    var inSampleSize = 1
+
+                    if (origHeight > targetSize || origWidth > targetSize) {
+                        val halfHeight = origHeight / 2
+                        val halfWidth = origWidth / 2
+                        while ((halfHeight / inSampleSize) >= targetSize && (halfWidth / inSampleSize) >= targetSize) {
+                            inSampleSize *= 2
+                        }
+                    }
+
+                    options = BitmapFactory.Options().apply {
+                        this.inSampleSize = inSampleSize
+                        inPreferredConfig = Bitmap.Config.ARGB_8888
+                    }
+                    inputStream = context.contentResolver.openInputStream(uri)
+                    val decoded = BitmapFactory.decodeStream(inputStream, null, options)
+                    inputStream?.close()
+                    decoded
                 }
-                inputStream = context.contentResolver.openInputStream(uri)
-                val bitmap = BitmapFactory.decodeStream(inputStream, null, options)
-                inputStream?.close()
 
                 if (bitmap != null) {
                     val scaled = resizeBitmap(bitmap, targetSize)

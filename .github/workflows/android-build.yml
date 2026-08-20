@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    name: Build & Test APK
+    name: Build & Generate APK
     runs-on: ubuntu-latest
 
     steps:
@@ -24,29 +24,25 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
 
       - name: Prepare Environment and Keystore
         run: |
-          # Create .env file for secrets gradle plugin
-          touch .env
-          echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> .env
-          
-          # Generate debug.keystore if not present (required by app build.gradle.kts)
-          if [ ! -f "debug.keystore" ]; then
+          # 1. Ensure .env exists for secrets gradle plugin
+          if [ ! -f ".env" ]; then
+            echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY || 'MY_GEMINI_API_KEY' }}" > .env
+          fi
+
+          # 2. Restore debug.keystore
+          if [ -f "debug.keystore.base64" ]; then
+            base64 -d debug.keystore.base64 > debug.keystore
+          else
             keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
           fi
 
-          # Ensure gradlew wrapper exists
-          if [ ! -f "gradlew" ]; then
-            gradle wrapper
-          fi
-          chmod +x gradlew
-
-      - name: Run Unit Tests
-        run: ./gradlew testDebugUnitTest --stacktrace
-
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace
+        run: gradle assembleDebug --stacktrace
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4

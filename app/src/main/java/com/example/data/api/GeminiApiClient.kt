@@ -86,105 +86,92 @@ class GeminiApiClient {
 
     suspend fun generatePromotion(input: ProductInput, customApiKey: String = ""): GeneratedPromo {
         val apiKey = getApiKey(customApiKey)
-
-        val prompt = GeminiPromptBuilder.buildPromotionPrompt(input)
-
-        if (apiKey.isNotBlank()) {
-            try {
-                val parts = mutableListOf<ContentPart>()
-                if (!input.photoBase64.isNullOrBlank()) {
-                    parts.add(
-                        ContentPart(
-                            inlineData = InlineData(
-                                mimeType = "image/jpeg",
-                                data = input.photoBase64
-                            )
-                        )
-                    )
-                }
-                parts.add(ContentPart(text = prompt))
-
-                val request = GeminiContentRequest(
-                    contents = listOf(ContentItem(parts = parts))
-                )
-
-                val response = service.generateContent(
-                    model = "gemini-2.5-flash",
-                    apiKey = apiKey,
-                    request = request
-                )
-
-                if (response.isSuccessful) {
-                    val rawText = response.body()?.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
-                    if (!rawText.isNullOrBlank()) {
-                        val parsed = parsePromotionJson(rawText, input)
-                        if (parsed != null) return parsed
-                    }
-                } else {
-                    Log.w("GeminiApiClient", "API returned error code: ${response.code()}")
-                }
-            } catch (e: Exception) {
-                Log.e("GeminiApiClient", "Failed to call Gemini API", e)
-            }
+        if (apiKey.isBlank()) {
+            throw Exception("Google Gemini API Key belum diatur. Silakan masukkan API Key Gemini Anda di menu Pengaturan.")
         }
 
-        // High quality deterministic fallback generator if offline / error
-        return generateFallbackPromotion(input)
+        val prompt = GeminiPromptBuilder.buildPromotionPrompt(input)
+        val parts = mutableListOf<ContentPart>()
+        if (!input.photoBase64.isNullOrBlank()) {
+            parts.add(
+                ContentPart(
+                    inlineData = InlineData(
+                        mimeType = "image/jpeg",
+                        data = input.photoBase64
+                    )
+                )
+            )
+        }
+        parts.add(ContentPart(text = prompt))
+
+        val request = GeminiContentRequest(
+            contents = listOf(ContentItem(parts = parts))
+        )
+
+        val response = service.generateContent(
+            model = "gemini-2.5-flash",
+            apiKey = apiKey,
+            request = request
+        )
+
+        if (!response.isSuccessful) {
+            val errBody = response.errorBody()?.string() ?: response.message()
+            throw Exception("Gagal menghubungi Gemini AI (Kode ${response.code()}): $errBody")
+        }
+
+        val rawText = response.body()?.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+        if (rawText.isNullOrBlank()) {
+            throw Exception("Respon dari Gemini AI kosong. Silakan coba generate ulang.")
+        }
+
+        val parsed = parsePromotionJson(rawText, input)
+        return parsed ?: throw Exception("Gagal membaca format JSON hasil AI. Silakan klik buat ulang.")
     }
 
     suspend fun analyzePhoto(photoBase64: String, productName: String, customApiKey: String = ""): PhotoAnalysisResult {
         val apiKey = getApiKey(customApiKey)
-
-        val prompt = GeminiPromptBuilder.buildPhotoAnalysisPrompt(productName)
-
-        if (apiKey.isNotBlank() && photoBase64.isNotBlank()) {
-            try {
-                val request = GeminiContentRequest(
-                    contents = listOf(
-                        ContentItem(
-                            parts = listOf(
-                                ContentPart(
-                                    inlineData = InlineData(
-                                        mimeType = "image/jpeg",
-                                        data = photoBase64
-                                    )
-                                ),
-                                ContentPart(text = prompt)
-                            )
-                        )
-                    )
-                )
-
-                val response = service.generateContent(
-                    model = "gemini-2.5-flash",
-                    apiKey = apiKey,
-                    request = request
-                )
-
-                if (response.isSuccessful) {
-                    val rawText = response.body()?.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
-                    if (!rawText.isNullOrBlank()) {
-                        val parsed = parsePhotoAnalysisJson(rawText)
-                        if (parsed != null) return parsed
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("GeminiApiClient", "Failed photo analysis", e)
-            }
+        if (apiKey.isBlank()) {
+            throw Exception("Google Gemini API Key belum diatur. Silakan masukkan API Key di menu Pengaturan.")
+        }
+        if (photoBase64.isBlank()) {
+            throw Exception("Foto produk belum dipilih atau tidak valid.")
         }
 
-        return PhotoAnalysisResult(
-            productType = if (productName.isNotBlank()) productName else "Produk Unggulan UMKM",
-            detectedColors = "Cerah & Kontras Menarik",
-            packagingType = "Kemasan Rapi & Siap Jual",
-            productVibe = "Segar, Menarik & Premium",
-            suggestedAudience = "Pelanggan Online & Pengguna Media Sosial",
-            suggestedHooks = listOf(
-                "Pecinta $productName wajib coba yang satu ini!",
-                "Sekali coba dijamin langsung repeat order!",
-                "Kualitas terbaik dengan harga terjangkau khusus hari ini!"
+        val prompt = GeminiPromptBuilder.buildPhotoAnalysisPrompt(productName)
+        val request = GeminiContentRequest(
+            contents = listOf(
+                ContentItem(
+                    parts = listOf(
+                        ContentPart(
+                            inlineData = InlineData(
+                                mimeType = "image/jpeg",
+                                data = photoBase64
+                            )
+                        ),
+                        ContentPart(text = prompt)
+                    )
+                )
             )
         )
+
+        val response = service.generateContent(
+            model = "gemini-2.5-flash",
+            apiKey = apiKey,
+            request = request
+        )
+
+        if (!response.isSuccessful) {
+            val errBody = response.errorBody()?.string() ?: response.message()
+            throw Exception("Gagal analisis foto via Gemini Vision (Kode ${response.code()}): $errBody")
+        }
+
+        val rawText = response.body()?.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+        if (rawText.isNullOrBlank()) {
+            throw Exception("Respon analisis foto dari Gemini AI kosong.")
+        }
+
+        val parsed = parsePhotoAnalysisJson(rawText)
+        return parsed ?: throw Exception("Gagal memproses hasil analisis visual AI.")
     }
 
     private fun cleanJson(raw: String): String {
@@ -347,96 +334,5 @@ class GeminiApiClient {
         } catch (e: Exception) {
             null
         }
-    }
-
-    private fun generateFallbackPromotion(input: ProductInput): GeneratedPromo {
-        val priceInfo = if (input.promoPrice.isNotBlank()) {
-            "🔥 PROMO HARI INI: Hanya ${input.promoPrice} (Harga Normal: ${input.normalPrice})"
-        } else if (input.normalPrice.isNotBlank()) {
-            "💰 Harga Terbaik: ${input.normalPrice}"
-        } else {
-            "💰 Hubungi Admin untuk penawaran spesial!"
-        }
-
-        val contactInfo = if (input.shopContact.isNotBlank()) "\n📲 Order via WhatsApp: ${input.shopContact}" else ""
-        val shopInfo = if (input.shopName.isNotBlank()) "\n🏬 ${input.shopName}" else ""
-
-        val mainCaption = """
-🌟 ${input.productName} - Pilihan Terbaik untuk Anda! 🌟
-
-Lagi cari ${input.productName} yang berkualitas, terpercaya, dan bikin puas? Ini dia jawabannya!
-
-✨ Kenapa Wajib Pilih Produk Kami?
-${if (input.uspList.isNotBlank()) "✅ " + input.uspList.replace(",", "\n✅ ") else "✅ Kualitas Terjamin & Bahan Premium\n✅ Pelayanan Cepat & Terpercaya\n✅ Garansi Kepuasan Pelanggan"}
-
-$priceInfo$shopInfo$contactInfo
-
-👉 Jangan sampai kehabisan, stok sangat terbatas! Klik pesan sekarang sebelum promo berakhir! 🚀
-""".trimIndent()
-
-        return GeneratedPromo(
-            productName = input.productName,
-            photoUri = input.photoUri,
-            mainCaption = mainCaption,
-            hookOpening = "🔥 Cari ${input.productName} terbaik dengan harga terjangkau? Ini rahasianya!",
-            description = "${input.productName} dirancang dengan bahan berkualitas pilihan untuk memberikan manfaat optimal bagi setiap pelanggan.",
-            advantagesAndBenefits = if (input.uspList.isNotBlank()) input.uspList else "Kualitas premium, higienis, pengiriman cepat dan aman.",
-            callToAction = "📲 Hubungi kami sekarang dan klaim promo spesial hari ini!",
-            hashtags = listOf(
-                "#${input.productName.replace(" ", "")}",
-                "#Jual${input.productName.replace(" ", "")}",
-                "#UMKMIndonesia",
-                "#ProdukLokal",
-                "#PromoSpesial",
-                "#OlshopMurah",
-                "#RekomendasiProduk",
-                "#BelanjaOnline"
-            ),
-            alternativeTitles = listOf(
-                "Rahasia ${input.productName} Laris Manis yang Bikin Pelanggan Ketagihan!",
-                "Spesial Hari Ini: Dapatkan ${input.productName} Kualitas Premium dengan Harga Promo!",
-                "Wajib Coba! Inilah Alasan Mengapa ${input.productName} Jadi Favorit Banyak Orang"
-            ),
-            viralHooks = listOf(
-                "Jangan beli ${input.productName} sebelum kamu tahu fakta penting ini! 😱",
-                "Satu hal yang bikin semua orang beralih ke ${input.productName}... 👀",
-                "Nyesel banget baru tahu ada ${input.productName} seenak/sebagus ini! ✨"
-            ),
-            ctaVariations = listOf(
-                "Klik tombol pesan sekarang sebelum promo berakhir malam ini! ⏳",
-                "Chat WhatsApp kami sekarang untuk klaim gratis ongkir! 📦",
-                "Stok tersisa 5 pcs lagi, amankan pesananmu sekarang juga! 🏃‍♂️"
-            ),
-            adVariations = mapOf(
-                "whatsapp" to "Halo kak! Kabar gembira buat kamu yang lagi cari *${input.productName}* 🎉\n\n$priceInfo\n\nYuk order sekarang mumpung slot promo masih ada! $contactInfo",
-                "wa_status" to "🔥 READY STOCK ${input.productName}!\n$priceInfo\nYang mau keep langsung reply ya kak, terbatas! 📲",
-                "instagram" to "Tampil beda dan nikmati kualitas terbaik bersama ${input.productName}! ✨\n\nOrder sekarang via Link di Bio / DM kami langsung ya! 🛍️",
-                "facebook" to "Buat bapak/ibu yang sedang mencari ${input.productName}, kami menyediakan stok terbaik dengan garansi kualitas! Silakan kirim pesan untuk info lebih lengkap.",
-                "tiktok_script" to "[Visual: Close up produk ${input.productName}]\n[Voiceover: 'Kalian masih bingung cari ${input.productName} yang beneran bagus? Nih kenalin solusinya! Kualitas nomor satu, harga bersahabat. Klik keranjang kuning sekarang!']",
-                "marketplace" to "${input.productName} Original & Kualitas Terjamin.\n\nSpesifikasi & Keunggulan:\n- ${input.uspList.ifBlank { "Bahan berkualitas tinggi" }}\n- Pengiriman cepat dan packing aman bubble wrap tebal."
-            ),
-            weeklyPlan = listOf(
-                WeeklyDayPlan(1, "Senin", "Pengenalan Masalah & Solusi", "Tunjukkan kendala umum konsumen", "Pernah gak sih ngerasa butuh ${input.productName} yang beneran awet? Ini solusinya!"),
-                WeeklyDayPlan(2, "Selasa", "Kualitas & Bahan", "Detail bahan/keunggulan", "Di balik ${input.productName}, ada proses teliti dengan bahan pilihan."),
-                WeeklyDayPlan(3, "Rabu", "Testimoni Pelanggan", "Social proof", "Terima kasih untuk repeat ordernya! ${input.productName} memang selalu jadi favorit."),
-                WeeklyDayPlan(4, "Kamis", "Tips & Trik Penggunaan", "Edukasi pelanggan", "Cara memaksimalkan manfaat ${input.productName} agar tahan lama."),
-                WeeklyDayPlan(5, "Jumat", "Jumat Berkah / Promo Weekend", "Penawaran akhir pekan", "Jumat Berkah! Dapatkan diskon spesial untuk setiap pembelian ${input.productName}."),
-                WeeklyDayPlan(6, "Sabtu", "Interaksi & Kuis", "Tingkatkan engagement", "Dari skala 1-10, seberapa butuh kamu sama ${input.productName}? Tulis di kolom komentar!"),
-                WeeklyDayPlan(7, "Minggu", "Last Call Reminder", "Urgensi penutupan promo", "Pengingat terakhir! Promo mingguan ${input.productName} berakhir malam ini.")
-            ),
-            storytelling = "Perjalanan menghadirkan ${input.productName} berawal dari komitmen kami untuk memberikan kualitas terbaik bagi setiap pelanggan setia. Setiap proses kami jaga dengan penuh cinta dan standar kebersihan tertinggi.",
-            promoCopy = "🚨 PROMO SPESIAL HARI INI SAJA! 🚨\nDapatkan ${input.productName} dengan penawaran istimewa. Kuota terbatas hanya untuk 10 pemesan pertama hari ini!",
-            quickReplies = listOf(
-                CustomerReplyItem("qr_1", "Tanya Harga", "Berapa harganya kak?", "Halo kak! Untuk ${input.productName} saat ini $priceInfo ya kak. Mau dikirim ke alamat mana kak? 😊"),
-                CustomerReplyItem("qr_2", "Tanya Stok", "Apakah ready kak?", "Ready stock siap kirim kak! Silakan kirimkan alamat lengkap untuk langsung kami proses ya ✨"),
-                CustomerReplyItem("qr_3", "Tanya Pengiriman", "Bisa COD atau gratis ongkir?", "Bisa banget kak! Kami melayani pengiriman ke seluruh wilayah dengan promo subsidi ongkir. Mau kami bantu hitung estimasinya?")
-            ),
-            followUps = listOf(
-                FollowUpTemplate("fu_1", "Follow-up Belum Bayar", "Pelanggan sudah minta totalan", "Halo kak 😊 Mau konfirmasi untuk pesanan ${input.productName} mau dikirim dengan ekspedisi apa ya kak? Biar langsung kami jadwalkan pengirimannya sore ini!"),
-                FollowUpTemplate("fu_2", "Follow-up Promo Hampir Habis", "Pelanggan belum konfirmasi", "Selamat siang kak! Mengingatkan slot promo spesial ${input.productName} tersisa sedikit lagi nih kak. Sayang banget kalau kelewatan, mau kami amankan sekarang?")
-            ),
-            selectedTone = input.tone.displayName,
-            selectedPlatform = input.platform.displayName
-        )
     }
 }
