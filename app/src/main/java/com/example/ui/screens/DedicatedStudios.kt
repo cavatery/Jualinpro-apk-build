@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -46,6 +48,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.model.CopywritingTone
 import com.example.model.GeneratedPromo
+import com.example.model.ProductCategory
 import com.example.model.PromotionPlatform
 import com.example.model.PromoType
 import com.example.ui.components.AppHeader
@@ -144,6 +147,7 @@ fun PromoStudioScreen(
     )
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun StudioGeneratorScreen(
     title: String,
@@ -221,6 +225,28 @@ private fun StudioGeneratorScreen(
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth()
                         )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Text(
+                            text = "Kategori Produk:",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            ProductCategory.values().forEach { cat ->
+                                FilterChip(
+                                    selected = input.category == cat,
+                                    onClick = { viewModel.updateInput { prev -> prev.copy(category = cat) } },
+                                    label = { Text("${cat.iconEmoji} ${cat.displayName}", fontSize = 12.sp) }
+                                )
+                            }
+                        }
 
                         Spacer(modifier = Modifier.height(12.dp))
 

@@ -2,6 +2,8 @@ package com.example.data.api
 
 import android.util.Log
 import com.example.ai.GeminiPromptBuilder
+import com.example.model.CarouselSlideItem
+import com.example.model.CategorizedHashtags
 import com.example.model.CustomerReplyItem
 import com.example.model.FollowUpTemplate
 import com.example.model.GeneratedPromo
@@ -122,7 +124,22 @@ class GeminiApiClient {
 
         val prompt = GeminiPromptBuilder.buildPromotionPrompt(input)
         val parts = mutableListOf<ContentPart>()
-        if (!input.photoBase64.isNullOrBlank()) {
+        
+        // Multi-photo base64 support (up to 10 images)
+        if (input.photoBase64List.isNotEmpty()) {
+            for (b64 in input.photoBase64List.take(10)) {
+                if (b64.isNotBlank()) {
+                    parts.add(
+                        ContentPart(
+                            inlineData = InlineData(
+                                mimeType = "image/jpeg",
+                                data = b64
+                            )
+                        )
+                    )
+                }
+            }
+        } else if (!input.photoBase64.isNullOrBlank()) {
             parts.add(
                 ContentPart(
                     inlineData = InlineData(
@@ -222,6 +239,46 @@ class GeminiApiClient {
                 }
             }
 
+            val catHashtagsObj = obj.optJSONObject("categorizedHashtags")
+            val viralList = mutableListOf<String>()
+            val nicheList = mutableListOf<String>()
+            val localList = mutableListOf<String>()
+            val promoList = mutableListOf<String>()
+
+            if (catHashtagsObj != null) {
+                val viralArr = catHashtagsObj.optJSONArray("viralTrending")
+                if (viralArr != null) {
+                    for (i in 0 until viralArr.length()) viralList.add(viralArr.getString(i))
+                }
+                val nicheArr = catHashtagsObj.optJSONArray("nicheCategory")
+                if (nicheArr != null) {
+                    for (i in 0 until nicheArr.length()) nicheList.add(nicheArr.getString(i))
+                }
+                val localArr = catHashtagsObj.optJSONArray("localUmkm")
+                if (localArr != null) {
+                    for (i in 0 until localArr.length()) localList.add(localArr.getString(i))
+                }
+                val promoArr = catHashtagsObj.optJSONArray("promoDiscount")
+                if (promoArr != null) {
+                    for (i in 0 until promoArr.length()) promoList.add(promoArr.getString(i))
+                }
+            }
+
+            val categorizedHashtags = CategorizedHashtags(
+                viralTrending = viralList,
+                nicheCategory = nicheList,
+                localUmkm = localList,
+                promoDiscount = promoList
+            )
+
+            // If main hashtags list is empty, aggregate from categorized
+            if (hashtags.isEmpty()) {
+                hashtags.addAll(viralList)
+                hashtags.addAll(nicheList)
+                hashtags.addAll(localList)
+                hashtags.addAll(promoList)
+            }
+
             val alternativeTitles = mutableListOf<String>()
             val titlesArray = obj.optJSONArray("alternativeTitles")
             if (titlesArray != null) {
@@ -305,20 +362,47 @@ class GeminiApiClient {
                 }
             }
 
+            val carouselSlides = mutableListOf<CarouselSlideItem>()
+            val slidesArray = obj.optJSONArray("carouselSlides")
+            if (slidesArray != null && slidesArray.length() > 0) {
+                for (i in 0 until slidesArray.length()) {
+                    val item = slidesArray.getJSONObject(i)
+                    carouselSlides.add(
+                        CarouselSlideItem(
+                            slideNumber = item.optInt("slideNumber", i + 1),
+                            title = item.optString("title", "Slide ${i + 1}"),
+                            badgeLabel = item.optString("badgeLabel", "✨ KEUNGGULAN #${i + 1}"),
+                            headline = item.optString("headline", ""),
+                            captionText = item.optString("captionText", ""),
+                            recommendedVisual = item.optString("recommendedVisual", "Foto produk pendukung")
+                        )
+                    )
+                }
+            }
+
+            // If carouselSlides is empty, synthesize a full 10-slide pro carousel
+            if (carouselSlides.isEmpty()) {
+                carouselSlides.addAll(generateFallbackCarousel(input, obj))
+            }
+
             GeneratedPromo(
                 productName = input.productName,
+                category = input.category.displayName,
                 photoUri = input.photoUri,
+                photoUris = if (input.photoUris.isNotEmpty()) input.photoUris else if (input.photoUri != null) listOf(input.photoUri) else emptyList(),
                 mainCaption = obj.optString("mainCaption", ""),
                 hookOpening = obj.optString("hookOpening", ""),
                 description = obj.optString("description", ""),
                 advantagesAndBenefits = obj.optString("advantagesAndBenefits", ""),
                 callToAction = obj.optString("callToAction", ""),
                 hashtags = hashtags,
+                categorizedHashtags = categorizedHashtags,
                 alternativeTitles = alternativeTitles,
                 viralHooks = viralHooks,
                 ctaVariations = ctaVariations,
                 adVariations = adVariations,
                 weeklyPlan = weeklyPlan,
+                carouselSlides = carouselSlides,
                 storytelling = obj.optString("storytelling", ""),
                 promoCopy = obj.optString("promoCopy", ""),
                 quickReplies = quickReplies,
@@ -330,6 +414,97 @@ class GeminiApiClient {
             Log.e("GeminiApiClient", "Error parsing promo json", e)
             null
         }
+    }
+
+    private fun generateFallbackCarousel(input: ProductInput, obj: JSONObject): List<CarouselSlideItem> {
+        val hook = obj.optString("hookOpening", "Spill Rahasia Produk Viral yang Bikin Ketagihan! ✨")
+        val pName = input.productName.ifBlank { "Produk Unggulan" }
+        val priceText = if (input.promoPrice.isNotBlank()) "Harga Spesial: ${input.promoPrice}" else "Pesan Sekarang"
+        val shopInfo = if (input.shopContact.isNotBlank()) "WhatsApp: ${input.shopContact}" else "Hubungi Admin Kami"
+        val usp = input.uspList.ifBlank { "Kualitas premium, higienis, dan terpercaya" }
+
+        return listOf(
+            CarouselSlideItem(
+                slideNumber = 1,
+                title = "Slide 1: Hook Utama & Tampilan Produk",
+                badgeLabel = "✨ PRODUK UTAMA",
+                headline = hook,
+                captionText = "Kenalan dulu sama $pName! Pilihan terbaik buat kamu yang cari kualitas tanpa kompromi.",
+                recommendedVisual = "Foto cover produk tampak depan dengan pencahayaan terang dan estetik"
+            ),
+            CarouselSlideItem(
+                slideNumber = 2,
+                title = "Slide 2: Keunggulan Bahan / Rasa / Kualitas",
+                badgeLabel = "🧵 MATERIAL PREMIUM",
+                headline = "Dibuat dari Material Pilihan Terbaik",
+                captionText = "Rincian keunggulan: $usp. Terasa bedanya sejak sentuhan / suapan pertama!",
+                recommendedVisual = "Foto close-up detail tekstur bahan / produk secara tajam dan jelas"
+            ),
+            CarouselSlideItem(
+                slideNumber = 3,
+                title = "Slide 3: Solusi Masalah Konsumen",
+                badgeLabel = "💡 SOLUSI NYATA",
+                headline = "Bikin Aktivitas Harian Jadi Jauh Lebih Mudah",
+                captionText = "Gak perlu bingung lagi cari yang pas. $pName dirancang khusus menjawab kebutuhanmu.",
+                recommendedVisual = "Foto produk saat digunakan dalam aktivitas / lifestyle sehari-hari"
+            ),
+            CarouselSlideItem(
+                slideNumber = 4,
+                title = "Slide 4: Pilihan Varian & Warna",
+                badgeLabel = "🎨 PILIHAN LENGKAP",
+                headline = "Tersedia Berbagai Pilihan Favorit",
+                captionText = "Bebas pilih varian yang paling cocok sama kepribadian dan gayamu.",
+                recommendedVisual = "Foto jajaran seluruh varian warna / rasa yang tersusun rapi"
+            ),
+            CarouselSlideItem(
+                slideNumber = 5,
+                title = "Slide 5: Jaminan Kualitas & Keamanan",
+                badgeLabel = "🌿 100% AMAN & ASLI",
+                headline = "Teruji Kualitasnya, Aman Dipakai",
+                captionText = "Proses pembuatan higienis dengan kontrol mutu ketat demi kepuasan 100% pelanggan.",
+                recommendedVisual = "Foto detail kemasan, segel keamanan, atau label sertifikasi"
+            ),
+            CarouselSlideItem(
+                slideNumber = 6,
+                title = "Slide 6: Ulasan & Testimoni Pembeli",
+                badgeLabel = "⭐ TESTIMONI JUJUR",
+                headline = "Sudah Terbukti Banyak yang Suka & Repeat Order",
+                captionText = "\"Barangnya bagus banget, pengiriman super cepat!\" - Testimoni dari pelanggan setia kami.",
+                recommendedVisual = "Foto tangkapan layar review positif bintang 5 dari pembeli"
+            ),
+            CarouselSlideItem(
+                slideNumber = 7,
+                title = "Slide 7: Panduan Praktis / Cara Pakai",
+                badgeLabel = "🥣 MUDAH & PRAKTIS",
+                headline = "Sangat Praktis & Siap Pakai Kapan Saja",
+                captionText = "Cukup ikuti langkah mudahnya untuk mendapatkan hasil yang paling maksimal.",
+                recommendedVisual = "Foto step by step cara penyajian / pemakaian produk"
+            ),
+            CarouselSlideItem(
+                slideNumber = 8,
+                title = "Slide 8: Promo Spesial Terbatas",
+                badgeLabel = "🏷️ DISKON SPESIAL",
+                headline = "Promo Khusus Hari Ini Saja!",
+                captionText = "$priceText! Amankan kuota diskonmu sebelum harga kembali normal.",
+                recommendedVisual = "Foto produk dengan grafis banner harga diskon spesial"
+            ),
+            CarouselSlideItem(
+                slideNumber = 9,
+                title = "Slide 9: Layanan Ekstra COD & Garansi",
+                badgeLabel = "🚚 BISA COD & AMAN",
+                headline = "Bisa Bayar di Tempat (COD) & Kirim Cepat",
+                captionText = "Packing ekstra aman dengan bubble wrap tebal + garansi pengiriman aman sampai tujuan.",
+                recommendedVisual = "Foto paket siap kirim rapi dengan stempel garansi aman"
+            ),
+            CarouselSlideItem(
+                slideNumber = 10,
+                title = "Slide 10: Call to Action (Pesan Sekarang)",
+                badgeLabel = "📲 ORDER SEKARANG",
+                headline = "Yuk Pesan Sekarang Sebelum Kehabisan!",
+                captionText = "Langsung klik link di bio atau WhatsApp ke $shopInfo sekarang juga ya!",
+                recommendedVisual = "Foto produk estetik dengan ajakan chat WA / order sekarang"
+            )
+        )
     }
 
     private fun parsePhotoAnalysisJson(rawText: String): PhotoAnalysisResult? {

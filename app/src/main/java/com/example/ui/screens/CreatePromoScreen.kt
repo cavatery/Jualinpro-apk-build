@@ -72,10 +72,17 @@ import com.example.data.local.UserProfile
 import coil.compose.AsyncImage
 import com.example.model.CopywritingTone
 import com.example.model.GeneratedPromo
+import com.example.model.ProductCategory
 import com.example.model.ProductInput
 import com.example.model.PromotionPlatform
 import com.example.model.PromoType
 import com.example.model.TargetAudience
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Collections
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.runtime.mutableStateOf
@@ -105,11 +112,11 @@ fun CreatePromoScreen(
     var showCameraDialog by remember { mutableStateOf(false) }
     var showSourcePickerSheet by remember { mutableStateOf(false) }
 
-    val photoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri: Uri? ->
-        if (uri != null) {
-            viewModel.setPhotoUri(uri, context)
+    val multiPhotoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 10)
+    ) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) {
+            viewModel.addPhotoUris(uris, context)
         }
     }
 
@@ -117,7 +124,7 @@ fun CreatePromoScreen(
         CameraCaptureDialog(
             onPhotoCaptured = { uri ->
                 showCameraDialog = false
-                viewModel.setPhotoUri(uri, context)
+                viewModel.addPhotoUris(listOf(uri), context)
             },
             onDismiss = { showCameraDialog = false }
         )
@@ -128,7 +135,7 @@ fun CreatePromoScreen(
             onDismiss = { showSourcePickerSheet = false },
             onCameraSelected = { showCameraDialog = true },
             onGallerySelected = {
-                photoPickerLauncher.launch(
+                multiPhotoPickerLauncher.launch(
                     PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                 )
             }
@@ -228,49 +235,215 @@ fun CreatePromoScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             BadgeNumber("1")
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Foto Produk (Opsional)",
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                            )
+                            Column {
+                                Text(
+                                    text = "Foto Produk & Korsel Pro (Maks 10)",
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                                )
+                                Text(
+                                    text = if (input.photoUris.isNotEmpty()) "${input.photoUris.size}/10 Foto Terpilih" else "Opsional • Mendukung s.d 10 Foto",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (input.photoUris.isNotEmpty()) SecondaryEmerald else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        if (input.photoUris.isNotEmpty()) {
+                            IconButton(
+                                onClick = { viewModel.clearAllPhotos() },
+                                modifier = Modifier.testTag("btn_clear_all_photos")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "Hapus Semua Foto",
+                                    tint = Color(0xFFEF4444)
+                                )
+                            }
                         }
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    if (input.photoUri != null) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(180.dp)
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                    if (input.photoUris.isNotEmpty()) {
+                        // Horizontal Photo Carousel Strip
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            AsyncImage(
-                                model = input.photoUri,
-                                contentDescription = "Foto Produk",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                            IconButton(
-                                onClick = { viewModel.setPhotoUri(null, context) },
-                                modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .padding(8.dp)
-                                    .background(Color.Black.copy(alpha = 0.6f), CircleShape)
-                                    .size(32.dp)
+                            itemsIndexed(input.photoUris) { index, uriStr ->
+                                val isPrimary = index == 0
+                                Box(
+                                    modifier = Modifier
+                                        .size(135.dp)
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .border(
+                                            width = if (isPrimary) 2.5.dp else 1.dp,
+                                            color = if (isPrimary) TertiaryAmber else MaterialTheme.colorScheme.outlineVariant,
+                                            shape = RoundedCornerShape(14.dp)
+                                        )
+                                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                                ) {
+                                    AsyncImage(
+                                        model = uriStr,
+                                        contentDescription = "Foto Slide ${index + 1}",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+
+                                    // Top Left: Slide Number Badge
+                                    Surface(
+                                        color = if (isPrimary) TertiaryAmber else PrimaryIndigo.copy(alpha = 0.9f),
+                                        shape = RoundedCornerShape(bottomEnd = 10.dp),
+                                        modifier = Modifier.align(Alignment.TopStart)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            if (isPrimary) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Star,
+                                                    contentDescription = null,
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(11.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(3.dp))
+                                            }
+                                            Text(
+                                                text = if (isPrimary) "#1 UTAMA" else "#${index + 1}",
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 10.sp
+                                                ),
+                                                color = Color.White
+                                            )
+                                        }
+                                    }
+
+                                    // Top Right: Remove Photo Button
+                                    IconButton(
+                                        onClick = { viewModel.removePhotoAtIndex(index) },
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .padding(4.dp)
+                                            .size(26.dp)
+                                            .background(Color.Black.copy(alpha = 0.65f), CircleShape)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Hapus Foto",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                    }
+
+                                    // Bottom Bar: Set Primary (if not primary)
+                                    if (!isPrimary) {
+                                        Surface(
+                                            color = Color.Black.copy(alpha = 0.6f),
+                                            shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp),
+                                            modifier = Modifier
+                                                .align(Alignment.BottomCenter)
+                                                .fillMaxWidth()
+                                                .clickable { viewModel.setPrimaryPhoto(index) }
+                                        ) {
+                                            Text(
+                                                text = "Jadikan Utama",
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 9.sp
+                                                ),
+                                                color = Color.White,
+                                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                                modifier = Modifier.padding(vertical = 3.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Add More Photos Slot if < 10
+                            if (input.photoUris.size < 10) {
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(135.dp)
+                                            .clip(RoundedCornerShape(14.dp))
+                                            .border(
+                                                1.5.dp,
+                                                PrimaryIndigo.copy(alpha = 0.4f),
+                                                RoundedCornerShape(14.dp)
+                                            )
+                                            .background(PrimaryIndigo.copy(alpha = 0.04f))
+                                            .clickable { showSourcePickerSheet = true }
+                                            .testTag("btn_add_more_photos"),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Center,
+                                            modifier = Modifier.padding(8.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(34.dp)
+                                                    .background(PrimaryIndigo, CircleShape),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Add,
+                                                    contentDescription = "Tambah Foto",
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            Text(
+                                                text = "+ Foto",
+                                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                                                color = PrimaryIndigo
+                                            )
+                                            Text(
+                                                text = "Maks 10 Foto",
+                                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // AI Pro Carousel Info Box
+                        Surface(
+                            color = PrimaryIndigo.copy(alpha = 0.08f),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Hapus Foto",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(18.dp)
+                                    imageVector = Icons.Default.Collections,
+                                    contentDescription = null,
+                                    tint = PrimaryIndigo,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "✨ Keunggulan Fitur Pro Korsel: AI otomatis menyusun 10 slide berantai dengan copywriting & angle foto terbaik untuk Instagram, TikTok Photo & WA Status!",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
                         }
 
                         Spacer(modifier = Modifier.height(10.dp))
 
-                        // AI Photo Analysis Trigger
+                        // AI Photo Analysis Trigger (Analisis Foto Utama)
                         OutlinedButton(
                             onClick = { viewModel.analyzeCurrentPhoto() },
                             enabled = !uiState.isAnalyzingPhoto,
@@ -283,7 +456,7 @@ fun CreatePromoScreen(
                             if (uiState.isAnalyzingPhoto) {
                                 CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Menganalisis Foto...")
+                                Text("Menganalisis Foto Utama...")
                             } else {
                                 Icon(
                                     imageVector = Icons.Default.Psychology,
@@ -291,7 +464,7 @@ fun CreatePromoScreen(
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Analisis Foto & Lengkapi Otomatis ✨")
+                                Text("Analisis Foto #1 & Lengkapi Otomatis ✨")
                             }
                         }
                     } else {
@@ -303,7 +476,7 @@ fun CreatePromoScreen(
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(110.dp)
+                                    .height(115.dp)
                                     .clip(RoundedCornerShape(16.dp))
                                     .border(
                                         1.5.dp,
@@ -335,23 +508,23 @@ fun CreatePromoScreen(
                                     }
                                     Spacer(modifier = Modifier.height(6.dp))
                                     Text(
-                                        text = "Foto Produk",
+                                        text = "Kamera Langsung",
                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                                         color = PrimaryIndigo
                                     )
                                     Text(
-                                        text = "Kamera Langsung",
+                                        text = "Ambil Foto Produk",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
 
-                            // Pick from Gallery
+                            // Pick from Gallery (Multi-photo s.d 10)
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(110.dp)
+                                    .height(115.dp)
                                     .clip(RoundedCornerShape(16.dp))
                                     .border(
                                         1.5.dp,
@@ -360,7 +533,7 @@ fun CreatePromoScreen(
                                     )
                                     .background(SecondaryEmerald.copy(alpha = 0.05f))
                                     .clickable {
-                                        photoPickerLauncher.launch(
+                                        multiPhotoPickerLauncher.launch(
                                             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                                         )
                                     }
@@ -387,12 +560,12 @@ fun CreatePromoScreen(
                                     }
                                     Spacer(modifier = Modifier.height(6.dp))
                                     Text(
-                                        text = "Buka Galeri",
+                                        text = "Pilih Galeri (s.d 10)",
                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                                         color = SecondaryEmerald
                                     )
                                     Text(
-                                        text = "Pilih dari Galeri",
+                                        text = "Multi-Foto Korsel Pro",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -433,6 +606,28 @@ fun CreatePromoScreen(
                             .fillMaxWidth()
                             .testTag("input_product_name")
                     )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = "Kategori Produk (untuk Rekomendasi Tagar Trending):",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        ProductCategory.values().forEach { cat ->
+                            FilterChip(
+                                selected = input.category == cat,
+                                onClick = { viewModel.updateInput { prev -> prev.copy(category = cat) } },
+                                label = { Text("${cat.iconEmoji} ${cat.displayName}", fontSize = 12.sp) }
+                            )
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(12.dp))
 

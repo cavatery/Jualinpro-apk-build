@@ -36,6 +36,20 @@ enum class TargetAudience(val displayName: String) {
     CUSTOM("Kustom...")
 }
 
+enum class ProductCategory(val displayName: String, val iconEmoji: String) {
+    FASHION("Fashion & Busana", "👗"),
+    FOOD_BEVERAGE("Kuliner & Makanan", "🍲"),
+    BEAUTY_SKINCARE("Kecantikan & Skincare", "💄"),
+    ELECTRONICS_GADGET("Elektronik & Gadget", "📱"),
+    HOME_LIVING("Perabot & Rumah Tangga", "🏠"),
+    HEALTH_HERBAL("Kesehatan & Herbal", "🌿"),
+    HANDICRAFT_UMKM("Kerajinan & Produk Unik", "🎨"),
+    MOM_BABY("Ibu & Perlengkapan Bayi", "👶"),
+    AUTOMOTIVE("Otomotif & Aksesoris", "🛵"),
+    SERVICES("Jasa & Layanan", "💼"),
+    GENERAL("Umum / Produk Lainnya", "📦")
+}
+
 enum class PromoType(val displayName: String) {
     NONE("Harga Normal"),
     DISCOUNT("Diskon Khusus (%)"),
@@ -45,8 +59,25 @@ enum class PromoType(val displayName: String) {
     BONUS("Bonus Hadiah")
 }
 
+data class CategorizedHashtags(
+    val viralTrending: List<String> = emptyList(),
+    val nicheCategory: List<String> = emptyList(),
+    val localUmkm: List<String> = emptyList(),
+    val promoDiscount: List<String> = emptyList()
+)
+
+data class CarouselSlideItem(
+    val slideNumber: Int,
+    val title: String,
+    val badgeLabel: String,
+    val headline: String,
+    val captionText: String,
+    val recommendedVisual: String
+)
+
 data class ProductInput(
     val productName: String = "",
+    val category: ProductCategory = ProductCategory.GENERAL,
     val normalPrice: String = "",
     val promoPrice: String = "",
     val promoType: PromoType = PromoType.NONE,
@@ -58,6 +89,8 @@ data class ProductInput(
     val platform: PromotionPlatform = PromotionPlatform.GENERAL,
     val photoUri: String? = null,
     val photoBase64: String? = null,
+    val photoUris: List<String> = emptyList(),
+    val photoBase64List: List<String> = emptyList(),
     val shopName: String = "",
     val shopContact: String = "",
     val shopLocation: String = ""
@@ -98,18 +131,22 @@ data class GeneratedPromo(
     val id: Long = 0,
     val timestamp: Long = System.currentTimeMillis(),
     val productName: String,
+    val category: String = "",
     val photoUri: String? = null,
+    val photoUris: List<String> = emptyList(),
     val mainCaption: String,
     val hookOpening: String,
     val description: String,
     val advantagesAndBenefits: String,
     val callToAction: String,
     val hashtags: List<String>,
+    val categorizedHashtags: CategorizedHashtags = CategorizedHashtags(),
     val alternativeTitles: List<String>,
     val viralHooks: List<String>,
     val ctaVariations: List<String>,
     val adVariations: Map<String, String>,
     val weeklyPlan: List<WeeklyDayPlan>,
+    val carouselSlides: List<CarouselSlideItem> = emptyList(),
     val storytelling: String,
     val promoCopy: String,
     val quickReplies: List<CustomerReplyItem>,

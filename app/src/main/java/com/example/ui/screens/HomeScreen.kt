@@ -255,7 +255,7 @@ fun HomeScreen(
                                             )
                                             Spacer(modifier = Modifier.width(4.dp))
                                             Text(
-                                                text = "Google Gemini 2.5 Flash Engine",
+                                                text = "Google Gemini 3.5 Flash Engine",
                                                 style = MaterialTheme.typography.labelSmall.copy(
                                                     color = Color.White,
                                                     fontWeight = FontWeight.Bold,

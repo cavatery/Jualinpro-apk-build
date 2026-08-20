@@ -4,7 +4,10 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
+import androidx.core.content.FileProvider
+import java.io.File
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -25,6 +28,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
@@ -194,14 +199,16 @@ fun CopyButton(
 @Composable
 fun ShareButton(
     textToShare: String,
+    photoUri: String? = null,
     title: String = "Bagikan Promosi",
+    label: String = "Kirim / Share",
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
 
     OutlinedButton(
         onClick = {
-            shareText(context, textToShare, title)
+            sharePromoContent(context, textToShare, photoUri, title = title)
         },
         shape = RoundedCornerShape(12.dp),
         modifier = modifier.testTag("share_button")
@@ -213,8 +220,42 @@ fun ShareButton(
         )
         Spacer(modifier = Modifier.width(6.dp))
         Text(
-            text = "Kirim / Share",
+            text = label,
             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+        )
+    }
+}
+
+@Composable
+fun WhatsAppShareButton(
+    textToShare: String,
+    photoUri: String? = null,
+    label: String = "Kirim ke WhatsApp (Foto + Teks)",
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+
+    Button(
+        onClick = {
+            shareToWhatsApp(context, textToShare, photoUri)
+        },
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Color(0xFF25D366),
+            contentColor = Color.White
+        ),
+        shape = RoundedCornerShape(14.dp),
+        modifier = modifier.testTag("btn_share_whatsapp")
+    ) {
+        Icon(
+            imageVector = Icons.Default.Send,
+            contentDescription = "WhatsApp",
+            tint = Color.White,
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
         )
     }
 }
@@ -283,6 +324,7 @@ fun ResultCardContainer(
     subtitle: String? = null,
     icon: ImageVector? = null,
     textToCopy: String,
+    photoUri: String? = null,
     shareTitle: String = title,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
@@ -358,6 +400,7 @@ fun ResultCardContainer(
                 )
                 ShareButton(
                     textToShare = textToCopy,
+                    photoUri = photoUri,
                     title = shareTitle,
                     modifier = Modifier.weight(1f)
                 )
@@ -366,19 +409,162 @@ fun ResultCardContainer(
     }
 }
 
-fun copyTextToClipboard(context: Context, text: String) {
+fun copyTextToClipboard(context: Context, text: String, message: String = "Berhasil disalin ke clipboard! 📋") {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     val clip = ClipData.newPlainText("Jualin AI Pro Copy", text)
     clipboard.setPrimaryClip(clip)
-    Toast.makeText(context, "Berhasil disalin ke clipboard! 📋", Toast.LENGTH_SHORT).show()
+    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+}
+
+/**
+ * Resolves a file/content URI into a secure shareable Content URI with read permissions.
+ */
+fun getShareableUri(context: Context, photoUriString: String?): Uri? {
+    if (photoUriString.isNullOrBlank()) return null
+    return try {
+        val parsedUri = Uri.parse(photoUriString)
+        if (parsedUri.scheme == "file" || (parsedUri.path != null && !parsedUri.scheme.equals("content", ignoreCase = true))) {
+            val filePath = parsedUri.path ?: photoUriString
+            val file = File(filePath)
+            if (file.exists()) {
+                FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+            } else {
+                parsedUri
+            }
+        } else {
+            parsedUri
+        }
+    } catch (e: Exception) {
+        try {
+            val file = File(photoUriString)
+            if (file.exists()) {
+                FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+            } else {
+                null
+            }
+        } catch (ex: Exception) {
+            null
+        }
+    }
+}
+
+/**
+ * Shares promo text and photo (if available) to any app (WhatsApp Status, Chat, Instagram, FB, etc.).
+ */
+fun sharePromoContent(
+    context: Context,
+    text: String,
+    photoUriString: String? = null,
+    targetPackage: String? = null,
+    title: String = "Bagikan Promosi"
+) {
+    val shareableUri = getShareableUri(context, photoUriString)
+    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+        if (shareableUri != null) {
+            type = "image/*"
+            putExtra(Intent.EXTRA_STREAM, shareableUri)
+            putExtra(Intent.EXTRA_TEXT, text)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        } else {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, text)
+        }
+        if (targetPackage != null) {
+            setPackage(targetPackage)
+        }
+    }
+
+    try {
+        if (targetPackage != null) {
+            context.startActivity(sendIntent)
+        } else {
+            val chooser = Intent.createChooser(sendIntent, title).apply {
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(chooser)
+        }
+    } catch (e: Exception) {
+        try {
+            val fallbackIntent = Intent(Intent.ACTION_SEND).apply {
+                if (shareableUri != null) {
+                    type = "image/*"
+                    putExtra(Intent.EXTRA_STREAM, shareableUri)
+                    putExtra(Intent.EXTRA_TEXT, text)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                } else {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, text)
+                }
+            }
+            context.startActivity(Intent.createChooser(fallbackIntent, title))
+        } catch (ex: Exception) {
+            Toast.makeText(context, "Tidak dapat membuka aplikasi berbagi: ${ex.localizedMessage}", Toast.LENGTH_SHORT).show()
+        }
+    }
+}
+
+/**
+ * Direct shortcut to share to WhatsApp with Photo and Caption attached.
+ */
+fun shareToWhatsApp(context: Context, text: String, photoUriString: String? = null) {
+    sharePromoContent(
+        context = context,
+        text = text,
+        photoUriString = photoUriString,
+        targetPackage = "com.whatsapp",
+        title = "Kirim ke WhatsApp"
+    )
 }
 
 fun shareText(context: Context, text: String, title: String = "Promosi Produk") {
-    val sendIntent: Intent = Intent().apply {
-        action = Intent.ACTION_SEND
-        putExtra(Intent.EXTRA_TEXT, text)
-        type = "text/plain"
+    sharePromoContent(context, text, photoUriString = null, title = title)
+}
+
+/**
+ * Shares multiple promo photos (up to 10 photos) along with a complete carousel caption.
+ */
+fun shareMultiplePromoImages(
+    context: Context,
+    text: String,
+    photoUriStrings: List<String>,
+    title: String = "Bagikan Korsel Promosi"
+) {
+    if (photoUriStrings.isEmpty()) {
+        shareText(context, text, title)
+        return
     }
-    val shareIntent = Intent.createChooser(sendIntent, title)
-    context.startActivity(shareIntent)
+
+    val uris = ArrayList<Uri>()
+    for (uriStr in photoUriStrings) {
+        val u = getShareableUri(context, uriStr)
+        if (u != null) {
+            uris.add(u)
+        }
+    }
+
+    if (uris.isEmpty()) {
+        shareText(context, text, title)
+        return
+    }
+
+    if (uris.size == 1) {
+        sharePromoContent(context, text, photoUriStrings.first(), title = title)
+        return
+    }
+
+    val intent = Intent(Intent.ACTION_SEND_MULTIPLE).apply {
+        type = "image/*"
+        putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
+        putExtra(Intent.EXTRA_TEXT, text)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+
+    try {
+        val chooser = Intent.createChooser(intent, title).apply {
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(chooser)
+    } catch (e: Exception) {
+        Toast.makeText(context, "Tidak dapat membuka aplikasi berbagi: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+    }
 }

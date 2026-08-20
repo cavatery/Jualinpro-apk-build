@@ -5,6 +5,7 @@ import com.example.data.local.HistoryDao
 import com.example.data.local.HistoryEntity
 import com.example.data.local.UserPreferencesRepository
 import com.example.data.local.UserProfile
+import com.example.model.CategorizedHashtags
 import com.example.model.CustomerReplyItem
 import com.example.model.FollowUpTemplate
 import com.example.model.GeneratedPromo
@@ -28,11 +29,16 @@ class PromoRepository(
     private val stringListType = Types.newParameterizedType(List::class.java, String::class.java)
     private val stringListAdapter = moshi.adapter<List<String>>(stringListType)
 
+    private val categorizedHashtagsAdapter = moshi.adapter(CategorizedHashtags::class.java)
+
     private val stringMapType = Types.newParameterizedType(Map::class.java, String::class.java, String::class.java)
     private val stringMapAdapter = moshi.adapter<Map<String, String>>(stringMapType)
 
     private val weeklyPlanListType = Types.newParameterizedType(List::class.java, WeeklyDayPlan::class.java)
     private val weeklyPlanAdapter = moshi.adapter<List<WeeklyDayPlan>>(weeklyPlanListType)
+
+    private val carouselSlideListType = Types.newParameterizedType(List::class.java, com.example.model.CarouselSlideItem::class.java)
+    private val carouselSlideAdapter = moshi.adapter<List<com.example.model.CarouselSlideItem>>(carouselSlideListType)
 
     private val quickReplyListType = Types.newParameterizedType(List::class.java, CustomerReplyItem::class.java)
     private val quickReplyAdapter = moshi.adapter<List<CustomerReplyItem>>(quickReplyListType)
@@ -109,18 +115,22 @@ class PromoRepository(
             id = model.id,
             timestamp = model.timestamp,
             productName = model.productName,
+            category = model.category,
             photoUri = model.photoUri,
+            photoUrisJson = stringListAdapter.toJson(model.photoUris) ?: "[]",
             mainCaption = model.mainCaption,
             hookOpening = model.hookOpening,
             description = model.description,
             advantagesAndBenefits = model.advantagesAndBenefits,
             callToAction = model.callToAction,
             hashtagsJson = stringListAdapter.toJson(model.hashtags) ?: "[]",
+            categorizedHashtagsJson = categorizedHashtagsAdapter.toJson(model.categorizedHashtags) ?: "{}",
             alternativeTitlesJson = stringListAdapter.toJson(model.alternativeTitles) ?: "[]",
             viralHooksJson = stringListAdapter.toJson(model.viralHooks) ?: "[]",
             ctaVariationsJson = stringListAdapter.toJson(model.ctaVariations) ?: "[]",
             adVariationsJson = stringMapAdapter.toJson(model.adVariations) ?: "{}",
             weeklyPlanJson = weeklyPlanAdapter.toJson(model.weeklyPlan) ?: "[]",
+            carouselSlidesJson = carouselSlideAdapter.toJson(model.carouselSlides) ?: "[]",
             storytelling = model.storytelling,
             promoCopy = model.promoCopy,
             quickRepliesJson = quickReplyAdapter.toJson(model.quickReplies) ?: "[]",
@@ -132,12 +142,15 @@ class PromoRepository(
     }
 
     private fun entityToModel(entity: HistoryEntity): GeneratedPromo {
+        val photoUris = try { stringListAdapter.fromJson(entity.photoUrisJson) ?: emptyList() } catch (e: Exception) { emptyList() }
         val hashtags = try { stringListAdapter.fromJson(entity.hashtagsJson) ?: emptyList() } catch (e: Exception) { emptyList() }
+        val categorizedHashtags = try { categorizedHashtagsAdapter.fromJson(entity.categorizedHashtagsJson) ?: CategorizedHashtags() } catch (e: Exception) { CategorizedHashtags() }
         val titles = try { stringListAdapter.fromJson(entity.alternativeTitlesJson) ?: emptyList() } catch (e: Exception) { emptyList() }
         val hooks = try { stringListAdapter.fromJson(entity.viralHooksJson) ?: emptyList() } catch (e: Exception) { emptyList() }
         val ctas = try { stringListAdapter.fromJson(entity.ctaVariationsJson) ?: emptyList() } catch (e: Exception) { emptyList() }
         val adVariations = try { stringMapAdapter.fromJson(entity.adVariationsJson) ?: emptyMap() } catch (e: Exception) { emptyMap() }
         val weeklyPlan = try { weeklyPlanAdapter.fromJson(entity.weeklyPlanJson) ?: emptyList() } catch (e: Exception) { emptyList() }
+        val carouselSlides = try { carouselSlideAdapter.fromJson(entity.carouselSlidesJson) ?: emptyList() } catch (e: Exception) { emptyList() }
         val quickReplies = try { quickReplyAdapter.fromJson(entity.quickRepliesJson) ?: emptyList() } catch (e: Exception) { emptyList() }
         val followUps = try { followUpAdapter.fromJson(entity.followUpsJson) ?: emptyList() } catch (e: Exception) { emptyList() }
 
@@ -145,18 +158,22 @@ class PromoRepository(
             id = entity.id,
             timestamp = entity.timestamp,
             productName = entity.productName,
+            category = entity.category,
             photoUri = entity.photoUri,
+            photoUris = if (photoUris.isNotEmpty()) photoUris else if (entity.photoUri != null) listOf(entity.photoUri) else emptyList(),
             mainCaption = entity.mainCaption,
             hookOpening = entity.hookOpening,
             description = entity.description,
             advantagesAndBenefits = entity.advantagesAndBenefits,
             callToAction = entity.callToAction,
             hashtags = hashtags,
+            categorizedHashtags = categorizedHashtags,
             alternativeTitles = titles,
             viralHooks = hooks,
             ctaVariations = ctas,
             adVariations = adVariations,
             weeklyPlan = weeklyPlan,
+            carouselSlides = carouselSlides,
             storytelling = entity.storytelling,
             promoCopy = entity.promoCopy,
             quickReplies = quickReplies,

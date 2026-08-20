@@ -98,84 +98,164 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _uiState.value = _uiState.value.copy(
                 currentInput = _uiState.value.currentInput.copy(
                     photoUri = null,
-                    photoBase64 = null
+                    photoBase64 = null,
+                    photoUris = emptyList(),
+                    photoBase64List = emptyList()
                 )
             )
             return
         }
+        addPhotoUris(listOf(uri), context)
+    }
+
+    fun addPhotoUris(uris: List<Uri>, context: Context) {
+        if (uris.isEmpty()) return
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                val currentUris = _uiState.value.currentInput.photoUris.toMutableList()
+                val currentBase64s = _uiState.value.currentInput.photoBase64List.toMutableList()
                 val targetSize = 800
-                val bitmap: Bitmap? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    val source = ImageDecoder.createSource(context.contentResolver, uri)
-                    ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
-                        decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
-                        val origWidth = info.size.width
-                        val origHeight = info.size.height
-                        if (origWidth > targetSize || origHeight > targetSize) {
-                            val maxDim = maxOf(origWidth, origHeight)
-                            val sample = (maxDim / targetSize).coerceAtLeast(1)
-                            decoder.setTargetSampleSize(sample)
+
+                val remainingSlots = (10 - currentUris.size).coerceAtLeast(0)
+                val urisToAdd = uris.take(remainingSlots)
+
+                for (uri in urisToAdd) {
+                    val uriStr = uri.toString()
+                    if (currentUris.contains(uriStr)) continue
+
+                    val bitmap: Bitmap? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        val source = ImageDecoder.createSource(context.contentResolver, uri)
+                        ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+                            decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+                            val origWidth = info.size.width
+                            val origHeight = info.size.height
+                            if (origWidth > targetSize || origHeight > targetSize) {
+                                val maxDim = maxOf(origWidth, origHeight)
+                                val sample = (maxDim / targetSize).coerceAtLeast(1)
+                                decoder.setTargetSampleSize(sample)
+                            }
                         }
-                    }
-                } else {
-                    var options = BitmapFactory.Options().apply {
-                        inJustDecodeBounds = true
-                    }
-                    var inputStream: InputStream? = context.contentResolver.openInputStream(uri)
-                    BitmapFactory.decodeStream(inputStream, null, options)
-                    inputStream?.close()
-
-                    val origWidth = options.outWidth
-                    val origHeight = options.outHeight
-                    var inSampleSize = 1
-
-                    if (origHeight > targetSize || origWidth > targetSize) {
-                        val halfHeight = origHeight / 2
-                        val halfWidth = origWidth / 2
-                        while ((halfHeight / inSampleSize) >= targetSize && (halfWidth / inSampleSize) >= targetSize) {
-                            inSampleSize *= 2
+                    } else {
+                        var options = BitmapFactory.Options().apply {
+                            inJustDecodeBounds = true
                         }
+                        var inputStream: InputStream? = context.contentResolver.openInputStream(uri)
+                        BitmapFactory.decodeStream(inputStream, null, options)
+                        inputStream?.close()
+
+                        val origWidth = options.outWidth
+                        val origHeight = options.outHeight
+                        var inSampleSize = 1
+
+                        if (origHeight > targetSize || origWidth > targetSize) {
+                            val halfHeight = origHeight / 2
+                            val halfWidth = origWidth / 2
+                            while ((halfHeight / inSampleSize) >= targetSize && (halfWidth / inSampleSize) >= targetSize) {
+                                inSampleSize *= 2
+                            }
+                        }
+
+                        options = BitmapFactory.Options().apply {
+                            this.inSampleSize = inSampleSize
+                            inPreferredConfig = Bitmap.Config.ARGB_8888
+                        }
+                        inputStream = context.contentResolver.openInputStream(uri)
+                        val decoded = BitmapFactory.decodeStream(inputStream, null, options)
+                        inputStream?.close()
+                        decoded
                     }
 
-                    options = BitmapFactory.Options().apply {
-                        this.inSampleSize = inSampleSize
-                        inPreferredConfig = Bitmap.Config.ARGB_8888
+                    if (bitmap != null) {
+                        val scaled = resizeBitmap(bitmap, targetSize)
+                        val outputStream = ByteArrayOutputStream()
+                        scaled.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
+                        val base64String = Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP)
+
+                        if (scaled != bitmap) {
+                            scaled.recycle()
+                        }
+                        bitmap.recycle()
+
+                        currentUris.add(uriStr)
+                        currentBase64s.add(base64String)
                     }
-                    inputStream = context.contentResolver.openInputStream(uri)
-                    val decoded = BitmapFactory.decodeStream(inputStream, null, options)
-                    inputStream?.close()
-                    decoded
                 }
 
-                if (bitmap != null) {
-                    val scaled = resizeBitmap(bitmap, targetSize)
-                    val outputStream = ByteArrayOutputStream()
-                    scaled.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
-                    val base64String = Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP)
-                    
-                    if (scaled != bitmap) {
-                        scaled.recycle()
-                    }
-                    bitmap.recycle()
-
-                    withContext(Dispatchers.Main) {
-                        _uiState.value = _uiState.value.copy(
-                            currentInput = _uiState.value.currentInput.copy(
-                                photoUri = uri.toString(),
-                                photoBase64 = base64String
-                            )
+                withContext(Dispatchers.Main) {
+                    val finalUris = currentUris.take(10)
+                    val finalB64s = currentBase64s.take(10)
+                    _uiState.value = _uiState.value.copy(
+                        currentInput = _uiState.value.currentInput.copy(
+                            photoUri = finalUris.firstOrNull(),
+                            photoBase64 = finalB64s.firstOrNull(),
+                            photoUris = finalUris,
+                            photoBase64List = finalB64s
                         )
-                    }
+                    )
+                    _toastEvent.emit("${finalUris.size}/10 Foto Korsel siap digunakan! 📸")
                 }
             } catch (e: Exception) {
-                Log.e("MainViewModel", "Failed to process photo: ${e.message}", e)
+                Log.e("MainViewModel", "Failed to process photos: ${e.message}", e)
                 withContext(Dispatchers.Main) {
                     _toastEvent.emit("Gagal memproses foto: ${e.message}")
                 }
             }
         }
+    }
+
+    fun removePhotoAtIndex(index: Int) {
+        val currentUris = _uiState.value.currentInput.photoUris.toMutableList()
+        val currentBase64s = _uiState.value.currentInput.photoBase64List.toMutableList()
+        if (index in currentUris.indices) {
+            currentUris.removeAt(index)
+            if (index in currentBase64s.indices) {
+                currentBase64s.removeAt(index)
+            }
+            _uiState.value = _uiState.value.copy(
+                currentInput = _uiState.value.currentInput.copy(
+                    photoUri = currentUris.firstOrNull(),
+                    photoBase64 = currentBase64s.firstOrNull(),
+                    photoUris = currentUris,
+                    photoBase64List = currentBase64s
+                )
+            )
+        }
+    }
+
+    fun setPrimaryPhoto(index: Int) {
+        val currentUris = _uiState.value.currentInput.photoUris.toMutableList()
+        val currentBase64s = _uiState.value.currentInput.photoBase64List.toMutableList()
+        if (index in currentUris.indices && index != 0) {
+            val uri = currentUris.removeAt(index)
+            currentUris.add(0, uri)
+            if (index in currentBase64s.indices) {
+                val b64 = currentBase64s.removeAt(index)
+                currentBase64s.add(0, b64)
+            }
+            _uiState.value = _uiState.value.copy(
+                currentInput = _uiState.value.currentInput.copy(
+                    photoUri = currentUris.firstOrNull(),
+                    photoBase64 = currentBase64s.firstOrNull(),
+                    photoUris = currentUris,
+                    photoBase64List = currentBase64s
+                )
+            )
+            viewModelScope.launch {
+                _toastEvent.emit("Foto utama (#1) diperbarui! ⭐")
+            }
+        }
+    }
+
+    fun clearAllPhotos() {
+        _uiState.value = _uiState.value.copy(
+            currentInput = _uiState.value.currentInput.copy(
+                photoUri = null,
+                photoBase64 = null,
+                photoUris = emptyList(),
+                photoBase64List = emptyList()
+            )
+        )
     }
 
     private fun resizeBitmap(bitmap: Bitmap, maxSize: Int): Bitmap {
