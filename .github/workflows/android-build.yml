@@ -25,38 +25,37 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Accept Android SDK Licenses & Install Components
+        run: |
+          yes | sdkmanager --licenses || true
+          sdkmanager --install "platforms;android-36" "build-tools;36.0.0" "platform-tools" || true
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.11.1'
 
       - name: Prepare Environment and Keystore
+        env:
+          USER_GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          # 1. Ensure .env exists for secrets-gradle-plugin
-          if [ ! -f ".env" ]; then
-            if [ -f ".env.example" ]; then
-              cp .env.example .env
-            else
-              echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY || 'MY_GEMINI_API_KEY' }}" > .env
-            fi
-          fi
-          if [ -n "${{ secrets.GEMINI_API_KEY }}" ]; then
-            echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" > .env
+          # 1. Ensure .env exists with GEMINI_API_KEY
+          if [ -n "$USER_GEMINI_KEY" ]; then
+            echo "GEMINI_API_KEY=$USER_GEMINI_KEY" > .env
+          else
+            echo "GEMINI_API_KEY=MY_GEMINI_API_KEY" > .env
           fi
 
           # 2. Restore or create debug.keystore
           if [ -f "debug.keystore.base64" ]; then
             base64 -d debug.keystore.base64 > debug.keystore
-          elif [ ! -f "debug.keystore" ]; then
+          fi
+          if [ ! -f "debug.keystore" ]; then
             keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
           fi
 
       - name: Build Debug APK
         run: gradle assembleDebug --no-daemon --stacktrace
-
-      - name: Verify APK Generated
-        run: |
-          ls -la app/build/outputs/apk/debug/ || true
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
