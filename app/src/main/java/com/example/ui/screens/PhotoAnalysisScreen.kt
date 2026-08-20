@@ -58,7 +58,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.example.ui.components.AppHeader
+import com.example.ui.components.CameraCaptureDialog
+import com.example.ui.components.PhotoSourcePickerBottomSheet
 import com.example.ui.components.ResultCardContainer
 import com.example.ui.components.copyTextToClipboard
 import com.example.ui.theme.PrimaryIndigo
@@ -78,12 +84,37 @@ fun PhotoAnalysisScreen(
     val input = uiState.currentInput
     val analysis = uiState.photoAnalysisResult
 
+    var showCameraDialog by remember { mutableStateOf(false) }
+    var showSourcePickerSheet by remember { mutableStateOf(false) }
+
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         if (uri != null) {
             viewModel.setPhotoUri(uri, context)
         }
+    }
+
+    if (showCameraDialog) {
+        CameraCaptureDialog(
+            onPhotoCaptured = { uri ->
+                showCameraDialog = false
+                viewModel.setPhotoUri(uri, context)
+            },
+            onDismiss = { showCameraDialog = false }
+        )
+    }
+
+    if (showSourcePickerSheet) {
+        PhotoSourcePickerBottomSheet(
+            onDismiss = { showSourcePickerSheet = false },
+            onCameraSelected = { showCameraDialog = true },
+            onGallerySelected = {
+                photoPickerLauncher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
+            }
+        )
     }
 
     Scaffold(
@@ -148,36 +179,108 @@ fun PhotoAnalysisScreen(
                                 }
                             }
                         } else {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(140.dp)
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .border(
-                                        1.5.dp,
-                                        MaterialTheme.colorScheme.outlineVariant,
-                                        RoundedCornerShape(14.dp)
-                                    )
-                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-                                    .clickable {
-                                        photoPickerLauncher.launch(
-                                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                        )
-                                    },
-                                contentAlignment = Alignment.Center
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(
-                                        imageVector = Icons.Default.AddAPhoto,
-                                        contentDescription = null,
-                                        tint = PrimaryIndigo,
-                                        modifier = Modifier.size(36.dp)
-                                    )
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(
-                                        text = "Pilih Foto dari Galeri",
-                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
-                                    )
+                                // Take with Camera
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(130.dp)
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .border(
+                                            1.5.dp,
+                                            PrimaryIndigo.copy(alpha = 0.4f),
+                                            RoundedCornerShape(16.dp)
+                                        )
+                                        .background(PrimaryIndigo.copy(alpha = 0.05f))
+                                        .clickable { showCameraDialog = true }
+                                        .testTag("btn_take_photo_camera"),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center,
+                                        modifier = Modifier.padding(12.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(44.dp)
+                                                .background(PrimaryIndigo, CircleShape),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.CameraAlt,
+                                                contentDescription = "Kamera Langsung",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            text = "Foto Produk",
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                            color = PrimaryIndigo
+                                        )
+                                        Text(
+                                            text = "Kamera Langsung",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+
+                                // Choose from Gallery
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(130.dp)
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .border(
+                                            1.5.dp,
+                                            SecondaryEmerald.copy(alpha = 0.4f),
+                                            RoundedCornerShape(16.dp)
+                                        )
+                                        .background(SecondaryEmerald.copy(alpha = 0.05f))
+                                        .clickable {
+                                            photoPickerLauncher.launch(
+                                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                            )
+                                        }
+                                        .testTag("btn_pick_gallery_photo"),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center,
+                                        modifier = Modifier.padding(12.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(44.dp)
+                                                .background(SecondaryEmerald, CircleShape),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.PhotoLibrary,
+                                                contentDescription = "Pilih Galeri",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            text = "Buka Galeri",
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                            color = SecondaryEmerald
+                                        )
+                                        Text(
+                                            text = "Pilih dari Galeri",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                 }
                             }
                         }

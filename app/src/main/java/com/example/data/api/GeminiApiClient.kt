@@ -52,10 +52,43 @@ class GeminiApiClient {
         }
     }
 
+    companion object {
+        private const val PRIMARY_MODEL = "gemini-3.5-flash"
+        private val FALLBACK_MODELS = listOf("gemini-flash-latest", "gemini-3.1-pro-preview")
+    }
+
+    private suspend fun executeWithFallback(
+        apiKey: String,
+        request: GeminiContentRequest
+    ): retrofit2.Response<GeminiResponse> {
+        val modelsToTry = listOf(PRIMARY_MODEL) + FALLBACK_MODELS
+        var lastResponse: retrofit2.Response<GeminiResponse>? = null
+        for (model in modelsToTry) {
+            try {
+                val response = service.generateContent(
+                    model = model,
+                    apiKey = apiKey,
+                    request = request
+                )
+                if (response.isSuccessful) {
+                    return response
+                }
+                lastResponse = response
+                // If not 404 (e.g. 400 Bad Request, 403 Invalid Key, 429 Rate limit), don't keep trying other models
+                if (response.code() != 404) {
+                    return response
+                }
+            } catch (e: Exception) {
+                Log.w("GeminiApiClient", "Model $model request failed: ${e.message}")
+            }
+        }
+        return lastResponse ?: throw Exception("Gagal menghubungi server Gemini AI. Silakan periksa koneksi internet Anda.")
+    }
+
     suspend fun testConnection(customApiKey: String = ""): Result<String> {
         val apiKey = getApiKey(customApiKey)
         if (apiKey.isBlank()) {
-            return Result.failure(Exception("API Key belum diisi. Masukkan Google Gemini API Key Anda."))
+            return Result.failure(Exception("API Key belum diisi. Masukkan Google Gemini API Key Anda di Pengaturan."))
         }
         return try {
             val request = GeminiContentRequest(
@@ -67,17 +100,14 @@ class GeminiApiClient {
                     )
                 )
             )
-            val response = service.generateContent(
-                model = "gemini-2.5-flash",
-                apiKey = apiKey,
-                request = request
-            )
+            val response = executeWithFallback(apiKey, request)
             if (response.isSuccessful) {
                 val reply = response.body()?.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
                     ?: "Koneksi berhasil terhubung!"
                 Result.success(reply.trim())
             } else {
-                Result.failure(Exception("Server menolak request (Error code: ${response.code()})"))
+                val errBody = response.errorBody()?.string() ?: response.message()
+                Result.failure(Exception("Gagal koneksi (Kode ${response.code()}): $errBody"))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -108,11 +138,7 @@ class GeminiApiClient {
             contents = listOf(ContentItem(parts = parts))
         )
 
-        val response = service.generateContent(
-            model = "gemini-2.5-flash",
-            apiKey = apiKey,
-            request = request
-        )
+        val response = executeWithFallback(apiKey, request)
 
         if (!response.isSuccessful) {
             val errBody = response.errorBody()?.string() ?: response.message()
@@ -154,11 +180,7 @@ class GeminiApiClient {
             )
         )
 
-        val response = service.generateContent(
-            model = "gemini-2.5-flash",
-            apiKey = apiKey,
-            request = request
-        )
+        val response = executeWithFallback(apiKey, request)
 
         if (!response.isSuccessful) {
             val errBody = response.errorBody()?.string() ?: response.message()

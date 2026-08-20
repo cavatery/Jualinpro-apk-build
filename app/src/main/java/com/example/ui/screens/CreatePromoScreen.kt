@@ -76,7 +76,14 @@ import com.example.model.ProductInput
 import com.example.model.PromotionPlatform
 import com.example.model.PromoType
 import com.example.model.TargetAudience
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.example.ui.components.AppHeader
+import com.example.ui.components.CameraCaptureDialog
+import com.example.ui.components.PhotoSourcePickerBottomSheet
 import com.example.ui.theme.PrimaryIndigo
 import com.example.ui.theme.SecondaryEmerald
 import com.example.ui.theme.TertiaryAmber
@@ -95,12 +102,37 @@ fun CreatePromoScreen(
     val userProfile by viewModel.userProfileState.collectAsStateWithLifecycle()
     val input = uiState.currentInput
 
+    var showCameraDialog by remember { mutableStateOf(false) }
+    var showSourcePickerSheet by remember { mutableStateOf(false) }
+
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         if (uri != null) {
             viewModel.setPhotoUri(uri, context)
         }
+    }
+
+    if (showCameraDialog) {
+        CameraCaptureDialog(
+            onPhotoCaptured = { uri ->
+                showCameraDialog = false
+                viewModel.setPhotoUri(uri, context)
+            },
+            onDismiss = { showCameraDialog = false }
+        )
+    }
+
+    if (showSourcePickerSheet) {
+        PhotoSourcePickerBottomSheet(
+            onDismiss = { showSourcePickerSheet = false },
+            onCameraSelected = { showCameraDialog = true },
+            onGallerySelected = {
+                photoPickerLauncher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
+            }
+        )
     }
 
     Scaffold(
@@ -263,46 +295,108 @@ fun CreatePromoScreen(
                             }
                         }
                     } else {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(120.dp)
-                                .clip(RoundedCornerShape(14.dp))
-                                .border(
-                                    1.5.dp,
-                                    MaterialTheme.colorScheme.outlineVariant,
-                                    RoundedCornerShape(14.dp)
-                                )
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-                                .clickable {
-                                    photoPickerLauncher.launch(
-                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            // Take with Camera
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(110.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .border(
+                                        1.5.dp,
+                                        PrimaryIndigo.copy(alpha = 0.4f),
+                                        RoundedCornerShape(16.dp)
+                                    )
+                                    .background(PrimaryIndigo.copy(alpha = 0.05f))
+                                    .clickable { showCameraDialog = true }
+                                    .testTag("btn_take_photo_camera"),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center,
+                                    modifier = Modifier.padding(10.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(38.dp)
+                                            .background(PrimaryIndigo, CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CameraAlt,
+                                            contentDescription = "Foto Kamera",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        text = "Foto Produk",
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = PrimaryIndigo
+                                    )
+                                    Text(
+                                        text = "Kamera Langsung",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
-                                .testTag("btn_upload_photo_box"),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
+                            }
+
+                            // Pick from Gallery
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(110.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .border(
+                                        1.5.dp,
+                                        SecondaryEmerald.copy(alpha = 0.4f),
+                                        RoundedCornerShape(16.dp)
+                                    )
+                                    .background(SecondaryEmerald.copy(alpha = 0.05f))
+                                    .clickable {
+                                        photoPickerLauncher.launch(
+                                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                        )
+                                    }
+                                    .testTag("btn_pick_gallery_photo"),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.AddAPhoto,
-                                    contentDescription = "Pilih Foto",
-                                    tint = PrimaryIndigo,
-                                    modifier = Modifier.size(32.dp)
-                                )
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text(
-                                    text = "Ketuk untuk upload foto produk",
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = "AI akan mendeteksi warna, kemasan, & keunggulan",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center,
+                                    modifier = Modifier.padding(10.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(38.dp)
+                                            .background(SecondaryEmerald, CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.PhotoLibrary,
+                                            contentDescription = "Buka Galeri",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        text = "Buka Galeri",
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = SecondaryEmerald
+                                    )
+                                    Text(
+                                        text = "Pilih dari Galeri",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                         }
                     }
