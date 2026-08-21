@@ -9,7 +9,7 @@ import retrofit2.http.Query
 interface GeminiApiService {
     @POST("v1beta/models/{model}:generateContent")
     suspend fun generateContent(
-        @Path("model") model: String = "gemini-2.0-flash-lite", // Diubah ke flash-lite
+        @Path("model") model: String = "gemini-3.5-flash-lite",
         @Query("key") apiKey: String,
         @Body request: GeminiContentRequest
     ): Response<GeminiResponse>

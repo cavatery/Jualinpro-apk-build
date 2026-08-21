@@ -55,8 +55,8 @@ class GeminiApiClient {
     }
 
     companion object {
-        private const val PRIMARY_MODEL = "gemini-1.5-flash"
-        private val FALLBACK_MODELS = listOf("gemini-2.0-flash", "gemini-2.0-flash-lite")
+        private const val PRIMARY_MODEL = "gemini-3.5-flash-lite"
+        private val FALLBACK_MODELS = listOf("gemini-3.5-flash", "gemini-1.5-flash", "gemini-2.0-flash")
     }
 
     private suspend fun executeWithFallback(
