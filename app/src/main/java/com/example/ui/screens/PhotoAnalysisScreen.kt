@@ -98,7 +98,15 @@ fun PhotoAnalysisScreen(
         "💎 Marmer Mewah",
         "🌿 Alam Hijau Segar",
         "⚡ Neon Cyberpunk",
-        "🌸 Pastel Dream"
+        "🌸 Pastel Dream",
+        "🏙️ Cityscape Sunset",
+        "☕ Cafe Cozy Industrial",
+        "🏖️ Tropikal Pantai Eksotis",
+        "🏛️ Klasik Arsitektur Mewah",
+        "🎨 Abstract Art Gradient",
+        "🌙 Night Sky & Sparkles",
+        "🍂 Autumn Golden Hour",
+        "❄️ Winter Frost Clean"
     )
 
     val filterOptions = listOf(
@@ -106,7 +114,10 @@ fun PhotoAnalysisScreen(
         "💥 HDR Kontras Tinggi",
         "🌅 Warm Vintage Gold",
         "🎬 Cinematic Teal",
-        "✨ Bright Pop E-commerce"
+        "✨ Bright Pop E-commerce",
+        "🖤 Luxury Monokrom",
+        "🌸 Soft Dreamy Pastel",
+        "🔥 Vibrant Punchy"
     )
 
     val photoPickerLauncher = rememberLauncherForActivityResult(

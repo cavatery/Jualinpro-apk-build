@@ -1,8 +1,12 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,8 +20,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FormatSize
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Store
 import androidx.compose.material3.Button
@@ -41,9 +46,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.local.UserProfile
 import com.example.ui.components.AppHeader
@@ -51,6 +58,7 @@ import com.example.ui.theme.PrimaryIndigo
 import com.example.ui.theme.SecondaryEmerald
 import com.example.ui.viewmodel.MainViewModel
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(
     viewModel: MainViewModel,
@@ -63,7 +71,6 @@ fun SettingsScreen(
     var shopContact by remember(userProfile) { mutableStateOf(userProfile.shopContact) }
     var shopLocation by remember(userProfile) { mutableStateOf(userProfile.shopLocation) }
     var shopMarketplaceLink by remember(userProfile) { mutableStateOf(userProfile.shopMarketplaceLink) }
-    var customApiKey by remember(userProfile) { mutableStateOf(userProfile.customApiKey) }
 
     Scaffold(
         topBar = {
@@ -185,7 +192,7 @@ fun SettingsScreen(
                 }
             }
 
-            // Gemini API Key
+            // Font Test & Typography Preview Card
             item {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -196,30 +203,192 @@ fun SettingsScreen(
                     Column(modifier = Modifier.padding(18.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                imageVector = Icons.Default.Key,
+                                imageVector = Icons.Default.FormatSize,
                                 contentDescription = null,
                                 tint = PrimaryIndigo,
                                 modifier = Modifier.size(24.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Kunci API Gemini (Opsional)",
+                                text = "Uji Coba Font & Tipografi UMKM",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                             )
                         }
                         Text(
-                            text = "Masukkan Gemini API Key pribadi untuk mengatasi error 404/429 & kuota maksimal dari Google AI Studio",
+                            text = "Uji berbagai gaya font dan ukuran teks untuk naskah promosi dan katalog produk Anda",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
 
                         Spacer(modifier = Modifier.height(14.dp))
 
+                        var fontTestText by remember { mutableStateOf("Promo Spesial Hari Ini! Diskon 50% + Gratis Ongkir 🚀") }
+                        var selectedFontFamily by remember { mutableStateOf("Modern Sans (Default)") }
+                        var selectedTextSize by remember { mutableStateOf(16) } // sp
+
                         OutlinedTextField(
-                            value = customApiKey,
-                            onValueChange = { customApiKey = it },
-                            label = { Text("Gemini API Key") },
-                            placeholder = { Text("AIzaSy...") },
+                            value = fontTestText,
+                            onValueChange = { fontTestText = it },
+                            label = { Text("Teks Uji Coba") },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Text(
+                            text = "Pilih Gaya Font:",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        val fontStyles = listOf(
+                            "Modern Sans (Default)",
+                            "Classic Serif",
+                            "Bold Display",
+                            "Rounded Friendly",
+                            "Monospace Code"
+                        )
+
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            fontStyles.forEach { font ->
+                                val isSelected = selectedFontFamily == font
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (isSelected) PrimaryIndigo.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    border = BorderStroke(1.dp, if (isSelected) PrimaryIndigo else Color.Transparent),
+                                    modifier = Modifier.clickable { selectedFontFamily = font }
+                                ) {
+                                    Text(
+                                        text = font,
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                            fontSize = 11.sp
+                                        ),
+                                        color = if (isSelected) PrimaryIndigo else MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // Preview Box
+                        Surface(
+                            color = PrimaryIndigo.copy(alpha = 0.05f),
+                            shape = RoundedCornerShape(14.dp),
+                            border = BorderStroke(1.dp, PrimaryIndigo.copy(alpha = 0.2f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    text = "Preview Tampilan Font ($selectedFontFamily):",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = fontTestText.ifEmpty { "Masukkan teks uji..." },
+                                    style = MaterialTheme.typography.bodyLarge.copy(
+                                        fontSize = selectedTextSize.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = when (selectedFontFamily) {
+                                            "Classic Serif" -> FontFamily.Serif
+                                            "Monospace Code" -> FontFamily.Monospace
+                                            else -> FontFamily.Default
+                                        }
+                                    ),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Pengaturan Profesional Tambahan (AI Tone & Watermark)
+            item {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    shape = RoundedCornerShape(20.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(18.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Palette,
+                                contentDescription = null,
+                                tint = PrimaryIndigo,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Pengaturan AI & Profesional Pro",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                            )
+                        }
+                        Text(
+                            text = "Sesuaikan gaya bahasa AI, watermark otomatis, dan format mata uang toko",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        var selectedTone by remember { mutableStateOf("Persuasif & Hard Selling") }
+                        var watermarkText by remember { mutableStateOf(shopName.ifEmpty { "Official Store" }) }
+                        var currencyFormat by remember { mutableStateOf("Rupiah (Rp 50.000)") }
+
+                        Text(
+                            text = "Gaya Naskah Promosi AI (Tone of Voice):",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        val toneOptions = listOf(
+                            "Persuasif & Hard Selling",
+                            "Kasual & Gaul (Gen Z)",
+                            "Formal & Profesional",
+                            "Ramah & Edukatif"
+                        )
+
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            toneOptions.forEach { tone ->
+                                val isSelected = selectedTone == tone
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (isSelected) PrimaryIndigo.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    border = BorderStroke(1.dp, if (isSelected) PrimaryIndigo else Color.Transparent),
+                                    modifier = Modifier.clickable { selectedTone = tone }
+                                ) {
+                                    Text(
+                                        text = tone,
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                            fontSize = 11.sp
+                                        ),
+                                        color = if (isSelected) PrimaryIndigo else MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        OutlinedTextField(
+                            value = watermarkText,
+                            onValueChange = { watermarkText = it },
+                            label = { Text("Teks Watermark Slide Foto") },
+                            placeholder = { Text("© Toko Berkah Official") },
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth()
@@ -227,68 +396,35 @@ fun SettingsScreen(
 
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        var isTesting by remember { mutableStateOf(false) }
-                        var testResultText by remember { mutableStateOf<String?>(null) }
-                        var testSuccess by remember { mutableStateOf(false) }
+                        Text(
+                            text = "Format Penulisan Harga:",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        val currencyOptions = listOf("Rupiah (Rp 50.000)", "IDR Standar (50.000 IDR)", "K-Notation (50rb)")
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Button(
-                                onClick = { viewModel.saveCustomApiKey(customApiKey) },
-                                colors = ButtonDefaults.buttonColors(containerColor = PrimaryIndigo),
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(48.dp)
-                                    .testTag("btn_save_api_key")
-                            ) {
-                                Text("Simpan API Key", fontWeight = FontWeight.Bold)
-                            }
-
-                            OutlinedButton(
-                                onClick = {
-                                    isTesting = true
-                                    testResultText = null
-                                    viewModel.saveCustomApiKey(customApiKey)
-                                    viewModel.testApiConnection { success, msg ->
-                                        isTesting = false
-                                        testSuccess = success
-                                        testResultText = msg
-                                    }
-                                },
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(48.dp)
-                                    .testTag("btn_test_api_key")
-                            ) {
-                                if (isTesting) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(18.dp),
-                                        strokeWidth = 2.dp,
-                                        color = PrimaryIndigo
+                            currencyOptions.forEach { curr ->
+                                val isSelected = currencyFormat == curr
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (isSelected) SecondaryEmerald.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    border = BorderStroke(1.dp, if (isSelected) SecondaryEmerald else Color.Transparent),
+                                    modifier = Modifier.clickable { currencyFormat = curr }
+                                ) {
+                                    Text(
+                                        text = curr,
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                            fontSize = 11.sp
+                                        ),
+                                        color = if (isSelected) SecondaryEmerald else MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                                     )
-                                } else {
-                                    Text("Uji Koneksi AI", fontWeight = FontWeight.SemiBold)
                                 }
-                            }
-                        }
-
-                        if (testResultText != null) {
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Surface(
-                                color = if (testSuccess) SecondaryEmerald.copy(alpha = 0.12f) else MaterialTheme.colorScheme.errorContainer,
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(
-                                    text = testResultText ?: "",
-                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                                    color = if (testSuccess) SecondaryEmerald else MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.padding(12.dp)
-                                )
                             }
                         }
                     }

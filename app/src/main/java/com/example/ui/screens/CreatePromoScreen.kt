@@ -5,6 +5,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -465,6 +466,73 @@ fun CreatePromoScreen(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text("Analisis Foto #1 & Lengkapi Otomatis ✨")
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // Photo Filter Selection Card
+                        Surface(
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(14.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.AutoAwesome,
+                                        contentDescription = null,
+                                        tint = SecondaryEmerald,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Filter & Efek Visual Foto Produk",
+                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "Pilih filter pro untuk mempercantik tampilan foto di slide promosi",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+                                val filterOptions = listOf(
+                                    "HD Glow Profesional",
+                                    "Cerah & Tajam (Vivid)",
+                                    "Hangat (Warm Gold)",
+                                    "Clean Minimalis",
+                                    "Sinematik (Cinematic)",
+                                    "Vintage Sepia",
+                                    "Monokrom (B&W)"
+                                )
+                                FlowRow(
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    filterOptions.forEach { flt ->
+                                        val isSelected = input.selectedPhotoFilter == flt
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = if (isSelected) SecondaryEmerald.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface,
+                                            border = BorderStroke(1.dp, if (isSelected) SecondaryEmerald else MaterialTheme.colorScheme.outlineVariant),
+                                            modifier = Modifier.clickable {
+                                                viewModel.updateInput { prev -> prev.copy(selectedPhotoFilter = flt) }
+                                            }
+                                        ) {
+                                            Text(
+                                                text = flt,
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                    fontSize = 11.sp
+                                                ),
+                                                color = if (isSelected) SecondaryEmerald else MaterialTheme.colorScheme.onSurface,
+                                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     } else {
