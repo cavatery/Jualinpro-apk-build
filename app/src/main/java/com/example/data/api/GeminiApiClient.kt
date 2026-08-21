@@ -532,4 +532,125 @@ class GeminiApiClient {
             null
         }
     }
+
+    suspend fun generateChatResponses(
+        customerMessage: String,
+        productName: String,
+        productPrice: String,
+        shopName: String,
+        shopContact: String,
+        shopLocation: String,
+        tone: String,
+        customApiKey: String = ""
+    ): List<CustomerReplyItem> {
+        val apiKey = getApiKey(customApiKey)
+        if (apiKey.isBlank()) {
+            throw Exception("Google Gemini API Key belum diatur. Silakan masukkan API Key di menu Pengaturan.")
+        }
+
+        val prompt = GeminiPromptBuilder.buildChatAssistantPrompt(
+            customerMessage = customerMessage,
+            productName = productName,
+            productPrice = productPrice,
+            shopName = shopName,
+            shopContact = shopContact,
+            shopLocation = shopLocation,
+            tone = tone
+        )
+
+        val request = GeminiContentRequest(
+            contents = listOf(
+                ContentItem(
+                    parts = listOf(ContentPart(text = prompt))
+                )
+            )
+        )
+
+        val response = executeWithFallback(apiKey, request)
+        if (!response.isSuccessful) {
+            val errBody = response.errorBody()?.string() ?: response.message()
+            throw Exception("Gagal menghasilkan balasan chat (Kode ${response.code()}): $errBody")
+        }
+
+        val rawText = response.body()?.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+        if (rawText.isNullOrBlank()) {
+            throw Exception("Respon balasan chat dari Gemini AI kosong.")
+        }
+
+        return parseChatRepliesJson(rawText, customerMessage, productName)
+    }
+
+    private fun parseChatRepliesJson(
+        rawText: String,
+        customerMessage: String,
+        productName: String
+    ): List<CustomerReplyItem> {
+        return try {
+            val jsonStr = cleanJson(rawText)
+            val replies = mutableListOf<CustomerReplyItem>()
+            if (jsonStr.startsWith("[")) {
+                val array = JSONArray(jsonStr)
+                for (i in 0 until array.length()) {
+                    val obj = array.getJSONObject(i)
+                    replies.add(
+                        CustomerReplyItem(
+                            id = obj.optString("id", "reply_$i"),
+                            questionCategory = obj.optString("questionCategory", "Balasan CS"),
+                            questionSample = obj.optString("questionSample", customerMessage),
+                            suggestedReply = obj.optString("suggestedReply", "")
+                        )
+                    )
+                }
+            } else {
+                val obj = JSONObject(jsonStr)
+                val array = obj.optJSONArray("replies") ?: obj.optJSONArray("quickReplies")
+                if (array != null) {
+                    for (i in 0 until array.length()) {
+                        val itemObj = array.getJSONObject(i)
+                        replies.add(
+                            CustomerReplyItem(
+                                id = itemObj.optString("id", "reply_$i"),
+                                questionCategory = itemObj.optString("questionCategory", "Balasan CS"),
+                                questionSample = itemObj.optString("questionSample", customerMessage),
+                                suggestedReply = itemObj.optString("suggestedReply", "")
+                            )
+                        )
+                    }
+                }
+            }
+
+            if (replies.isEmpty()) {
+                getDefaultChatReplies(customerMessage, productName)
+            } else {
+                replies
+            }
+        } catch (e: Exception) {
+            getDefaultChatReplies(customerMessage, productName)
+        }
+    }
+
+    private fun getDefaultChatReplies(customerMessage: String, productName: String): List<CustomerReplyItem> {
+        val prod = if (productName.isNotBlank()) productName else "produk kami"
+        return listOf(
+            CustomerReplyItem(
+                id = "def_1",
+                questionCategory = "🌸 Ramah & Hangat",
+                questionSample = customerMessage.ifBlank { "Tanya Produk" },
+                suggestedReply = "Halo kak! Terima kasih sudah menghubungi kami 😊 Untuk $prod ready stock dan siap dikirim hari ini ya kak. Boleh dibantu mau dikirim ke daerah mana kak?"
+            ),
+            CustomerReplyItem(
+                id = "def_2",
+                questionCategory = "⚡ Fast Closing & Promo",
+                questionSample = customerMessage.ifBlank { "Tanya Promo" },
+                suggestedReply = "Hai kak! Kabar baiknya hari ini lagi ada promo potongan harga khusus untuk $prod ✨ Kuota promo terbatas untuk 5 orang pertama hari ini. Mau kami amankan slotnya sekarang kak?"
+            ),
+            CustomerReplyItem(
+                id = "def_3",
+                questionCategory = "📦 Format Order Langsung",
+                questionSample = customerMessage.ifBlank { "Format Pemesanan" },
+                suggestedReply = "Siap kak! Agar bisa langsung diproses pengirimannya, kakak bisa isi format order ini ya:\n\n• Nama Penerima:\n• No HP:\n• Alamat Lengkap:\n• Jumlah Pesanan:\n\nSetelah itu kami buatkan totalan dan resinya kak! 🙏"
+            )
+        )
+    }
 }
+

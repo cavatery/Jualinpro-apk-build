@@ -16,6 +16,7 @@ import com.example.data.local.AppDatabase
 import com.example.data.local.UserPreferencesRepository
 import com.example.data.repository.PromoRepository
 import com.example.model.CopywritingTone
+import com.example.model.CustomerReplyItem
 import com.example.model.GeneratedPromo
 import com.example.model.PhotoAnalysisResult
 import com.example.model.ProductInput
@@ -39,6 +40,10 @@ import java.io.InputStream
 data class PromoUiState(
     val isGenerating: Boolean = false,
     val isAnalyzingPhoto: Boolean = false,
+    val isGeneratingChat: Boolean = false,
+    val chatInquiryInput: String = "",
+    val chatSelectedTone: String = "🌸 Ramah & Sopan",
+    val chatGeneratedReplies: List<CustomerReplyItem> = emptyList(),
     val currentInput: ProductInput = ProductInput(),
     val latestResult: GeneratedPromo? = null,
     val selectedResultDetail: GeneratedPromo? = null,
@@ -341,6 +346,57 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     errorMessage = "Gagal membuat materi: ${err.message}"
                 )
                 _toastEvent.emit("Terjadi kendala: ${err.message}")
+            }
+        }
+    }
+
+    fun setChatInquiry(inquiry: String) {
+        _uiState.value = _uiState.value.copy(chatInquiryInput = inquiry)
+    }
+
+    fun setChatSelectedTone(tone: String) {
+        _uiState.value = _uiState.value.copy(chatSelectedTone = tone)
+    }
+
+    fun generateChatAssistantReplies(onSuccess: (() -> Unit)? = null) {
+        val inquiry = _uiState.value.chatInquiryInput
+        if (inquiry.isBlank()) {
+            viewModelScope.launch {
+                _toastEvent.emit("Tulis atau pilih pertanyaan pembeli terlebih dahulu!")
+            }
+            return
+        }
+
+        val input = _uiState.value.currentInput
+        val priceInfo = if (input.promoPrice.isNotBlank()) {
+            "Harga Promo ${input.promoPrice} (Normal ${input.normalPrice})"
+        } else if (input.normalPrice.isNotBlank()) {
+            "Harga ${input.normalPrice}"
+        } else {
+            ""
+        }
+
+        _uiState.value = _uiState.value.copy(isGeneratingChat = true, errorMessage = null)
+        viewModelScope.launch {
+            val result = repository.generateChatResponses(
+                customerMessage = inquiry,
+                productName = input.productName,
+                productPrice = priceInfo,
+                shopName = input.shopName,
+                shopContact = input.shopContact,
+                shopLocation = input.shopLocation,
+                tone = _uiState.value.chatSelectedTone
+            )
+            _uiState.value = _uiState.value.copy(isGeneratingChat = false)
+            result.onSuccess { replies ->
+                _uiState.value = _uiState.value.copy(chatGeneratedReplies = replies)
+                _toastEvent.emit("Balasan chat berhasil dibuat! Siap copy / kirim ke WA 💬✨")
+                onSuccess?.invoke()
+            }.onFailure { err ->
+                _uiState.value = _uiState.value.copy(
+                    errorMessage = "Gagal membuat balasan chat: ${err.message}"
+                )
+                _toastEvent.emit("Kendala AI: ${err.message}")
             }
         }
     }

@@ -93,7 +93,9 @@ data class ProductInput(
     val photoBase64List: List<String> = emptyList(),
     val shopName: String = "",
     val shopContact: String = "",
-    val shopLocation: String = ""
+    val shopLocation: String = "",
+    val selectedPhotoBackground: String = "Studio Minimalis Putih",
+    val selectedPhotoFilter: String = "HD Glow Profesional"
 )
 
 data class WeeklyDayPlan(

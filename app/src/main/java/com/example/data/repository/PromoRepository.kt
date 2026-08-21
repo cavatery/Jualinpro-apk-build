@@ -81,6 +81,33 @@ class PromoRepository(
         }
     }
 
+    suspend fun generateChatResponses(
+        customerMessage: String,
+        productName: String,
+        productPrice: String,
+        shopName: String,
+        shopContact: String,
+        shopLocation: String,
+        tone: String
+    ): Result<List<CustomerReplyItem>> {
+        return try {
+            val customKey = userPrefs.userProfile.value.customApiKey
+            val result = geminiClient.generateChatResponses(
+                customerMessage = customerMessage,
+                productName = productName,
+                productPrice = productPrice,
+                shopName = shopName,
+                shopContact = shopContact,
+                shopLocation = shopLocation,
+                tone = tone,
+                customApiKey = customKey
+            )
+            Result.success(result)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun testConnection(): Result<String> {
         val customKey = userPrefs.userProfile.value.customApiKey
         return geminiClient.testConnection(customKey)

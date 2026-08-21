@@ -278,4 +278,50 @@ Berikan output JSON dengan format:
 }
 """.trimIndent()
     }
+
+    fun buildChatAssistantPrompt(
+        customerMessage: String,
+        productName: String,
+        productPrice: String,
+        shopName: String,
+        shopContact: String,
+        shopLocation: String,
+        tone: String
+    ): String {
+        return """
+Kamu adalah AI Asisten Customer Service (CS) & Closing Online Shop UMKM Indonesia terhebat.
+Tugasmu adalah membuat respon balasan chat pembeli yang ramah, sopan, persuasif, dan berorientasi closing penjualan (konversi tinggi), TANPA bertele-tele.
+
+KONTEKS:
+- Pertanyaan / Chat Pembeli: "$customerMessage"
+- Produk Toko: "${productName.ifBlank { "Produk Toko" }}"
+- Info Harga/Promo: "${productPrice.ifBlank { "Sesuai Promo Berjalan" }}"
+- Nama Toko: "${shopName.ifBlank { "Toko Kami" }}"
+- Lokasi Toko: "${shopLocation.ifBlank { "Indonesia" }}"
+- Gaya Bahasa / Sikap CS: "$tone"
+
+Berikan respons HANYA berupa JSON Array berisi 3-4 variasi balasan terbaik dengan format:
+[
+  {
+    "id": "reply_1",
+    "questionCategory": "Jawaban Ramah & Solutif",
+    "questionSample": "Balasan Standar CS Hangat",
+    "suggestedReply": "Teks balasan ramah lengkap dengan salam, solusi pertanyaan, dan emoji manis..."
+  },
+  {
+    "id": "reply_2",
+    "questionCategory": "Jawaban Cepat + Closing / FOMO",
+    "questionSample": "Balasan Cepat Closing",
+    "suggestedReply": "Teks balasan to-the-point dengan penawaran kuota terbatas/bonus agar pembeli langsung checkout..."
+  },
+  {
+    "id": "reply_3",
+    "questionCategory": "Jawaban Negosiasi & Solusi Pengiriman",
+    "questionSample": "Balasan Edukasi / Solusi Alternatif",
+    "suggestedReply": "Teks balasan menjelaskan value produk, opsi voucher/ongkir, atau format order siap isi..."
+  }
+]
+""".trimIndent()
+    }
 }
+

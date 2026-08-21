@@ -1,5 +1,8 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -32,6 +35,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -72,6 +76,7 @@ import com.example.ui.theme.SecondaryEmerald
 import com.example.ui.theme.TertiaryAmber
 import com.example.ui.viewmodel.MainViewModel
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun PhotoAnalysisScreen(
     viewModel: MainViewModel,
@@ -86,6 +91,23 @@ fun PhotoAnalysisScreen(
 
     var showCameraDialog by remember { mutableStateOf(false) }
     var showSourcePickerSheet by remember { mutableStateOf(false) }
+
+    val backgroundOptions = listOf(
+        "✨ Studio Minimalis Putih",
+        "🪵 Meja Kayu Estetik",
+        "💎 Marmer Mewah",
+        "🌿 Alam Hijau Segar",
+        "⚡ Neon Cyberpunk",
+        "🌸 Pastel Dream"
+    )
+
+    val filterOptions = listOf(
+        "🌟 HD Glow Profesional",
+        "💥 HDR Kontras Tinggi",
+        "🌅 Warm Vintage Gold",
+        "🎬 Cinematic Teal",
+        "✨ Bright Pop E-commerce"
+    )
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -120,8 +142,8 @@ fun PhotoAnalysisScreen(
     Scaffold(
         topBar = {
             AppHeader(
-                title = "Analisis Foto AI",
-                subtitle = "Kenali otomatis tipe, warna, kemasan & ide promosi",
+                title = "Studio Foto & Filter AI Pro",
+                subtitle = "Pilih latar belakang studio, filter pro & analisis AI",
                 onBackClick = onBack
             )
         }
@@ -162,6 +184,20 @@ fun PhotoAnalysisScreen(
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier.fillMaxSize()
                                 )
+                                Surface(
+                                    color = PrimaryIndigo.copy(alpha = 0.85f),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier
+                                        .align(Alignment.BottomStart)
+                                        .padding(8.dp)
+                                ) {
+                                    Text(
+                                        text = "${input.selectedPhotoBackground} | ${input.selectedPhotoFilter}",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold),
+                                        color = Color.White,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
                                 IconButton(
                                     onClick = { viewModel.setPhotoUri(null, context) },
                                     modifier = Modifier
@@ -285,7 +321,79 @@ fun PhotoAnalysisScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Background Studio Selection
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(imageVector = Icons.Default.Palette, contentDescription = null, tint = PrimaryIndigo, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Pilih Latar Belakang Studio AI:",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            backgroundOptions.forEach { bg ->
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = if (input.selectedPhotoBackground == bg) PrimaryIndigo.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    border = BorderStroke(1.dp, if (input.selectedPhotoBackground == bg) PrimaryIndigo else Color.Transparent),
+                                    modifier = Modifier.clickable {
+                                        viewModel.updateInput { prev -> prev.copy(selectedPhotoBackground = bg) }
+                                    }
+                                ) {
+                                    Text(
+                                        text = bg,
+                                        fontSize = 12.sp,
+                                        fontWeight = if (input.selectedPhotoBackground == bg) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (input.selectedPhotoBackground == bg) PrimaryIndigo else MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Filter Photo Selection
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(imageVector = Icons.Default.AutoFixHigh, contentDescription = null, tint = SecondaryEmerald, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Pilih Filter Foto Profesional:",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            filterOptions.forEach { flt ->
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = if (input.selectedPhotoFilter == flt) SecondaryEmerald.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    border = BorderStroke(1.dp, if (input.selectedPhotoFilter == flt) SecondaryEmerald else Color.Transparent),
+                                    modifier = Modifier.clickable {
+                                        viewModel.updateInput { prev -> prev.copy(selectedPhotoFilter = flt) }
+                                    }
+                                ) {
+                                    Text(
+                                        text = flt,
+                                        fontSize = 12.sp,
+                                        fontWeight = if (input.selectedPhotoFilter == flt) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (input.selectedPhotoFilter == flt) SecondaryEmerald else MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
 
                         OutlinedTextField(
                             value = input.productName,
@@ -297,7 +405,7 @@ fun PhotoAnalysisScreen(
                             modifier = Modifier.fillMaxWidth()
                         )
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
 
                         Button(
                             onClick = { viewModel.analyzeCurrentPhoto() },
@@ -315,11 +423,11 @@ fun PhotoAnalysisScreen(
                                     strokeWidth = 2.dp
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Menganalisis Detail Foto...")
+                                Text("Menerapkan Studio & Analisis AI...")
                             } else {
                                 Icon(imageVector = Icons.Default.Psychology, contentDescription = null)
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Mulai Analisis Foto dengan AI ✨")
+                                Text("Proses Studio Foto & Analisis AI ✨")
                             }
                         }
                     }
