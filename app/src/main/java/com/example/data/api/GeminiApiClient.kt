@@ -55,8 +55,8 @@ class GeminiApiClient {
     }
 
     companion object {
-        private const val PRIMARY_MODEL = "gemini-3.5-flash"
-        private val FALLBACK_MODELS = listOf("gemini-flash-latest", "gemini-3.1-pro-preview")
+        private const val PRIMARY_MODEL = "gemini-1.5-flash"
+        private val FALLBACK_MODELS = listOf("gemini-2.0-flash", "gemini-2.0-flash-lite")
     }
 
     private suspend fun executeWithFallback(
@@ -76,8 +76,8 @@ class GeminiApiClient {
                     return response
                 }
                 lastResponse = response
-                // If not 404 (e.g. 400 Bad Request, 403 Invalid Key, 429 Rate limit), don't keep trying other models
-                if (response.code() != 404) {
+                // If not 404 and not 429, don't keep trying other models
+                if (response.code() != 404 && response.code() != 429) {
                     return response
                 }
             } catch (e: Exception) {
